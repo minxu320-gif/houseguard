@@ -1,0 +1,514 @@
+{% extends "houses/base.html" %}
+{% block title %}我的主页{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <!-- 登出按钮 -->
+    <div class="d-flex justify-content-end mb-3">
+        <a href="{% url 'logout' %}" class="btn btn-danger bg-danger-subtle text-danger border-danger-subtle">登出</a>
+    </div>
+
+    <h1 class="mb-4">我的信息</h1>
+
+    {% if reminders %}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning bg-opacity-25 text-dark">签到提醒</div>
+        <div class="card-body">
+            <ul class="mb-0">
+                {% for r in reminders %}
+                <li>{{ r }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 用户基本信息 -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            用户信息
+        </div>
+        <div class="card-body">
+            <p><strong>用户名：</strong> {{ user.username }}</p>
+            <p><strong>角色：</strong> {{ user.role }}</p>
+            <p><strong>注册时间：</strong> {{ user.create_time|date:"Y-m-d H:i" }}</p>
+
+            {% if profile %}
+            <p><strong>真实姓名：</strong> {{ profile.real_name|default:"未填写" }}</p>
+            <p><strong>性别：</strong> {{ profile.gender|default:"未填写" }}</p>
+            <p><strong>手机号：</strong> {{ profile.phone|default:"未填写" }}</p>
+            <p><strong>邮箱：</strong> {{ profile.email|default:"未填写" }}</p>
+            <p><strong>经验等级：</strong> {{ profile.experience_level|default:"未知" }}</p>
+            <p><strong>简介：</strong> {{ profile.bio|default:"暂无" }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 用户房源 -->
+    <div class="card mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <span>我的房源</span>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addHouseModal">
+                增加房源
+            </button>
+        </div>
+        <!-- 房源申请管理（房主用） -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning bg-opacity-25 text-dark">
+                房源申请管理
+            </div>
+            <div class="card-body">
+                {% if house_requests %}
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>请求ID</th>
+                            <th>申请人</th>
+                            <th>房源ID</th>
+                            <th>时间</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in house_requests %}
+                        <tr>
+                            <td>{{ req.request_id }}</td>
+                            <td>{{ req.sitter_id }}</td>
+                            <td>{{ req.house_id }}</td>
+                            <td>{{ req.start_date }} ~ {{ req.end_date }}</td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                    <span class="badge bg-warning">待处理</span>
+                                {% elif req.status == 'approved' %}
+                                    <span class="badge bg-success">已同意</span>
+                                {% elif req.status == 'rejected' %}
+                                    <span class="badge bg-danger">已拒绝</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                    <a href="{% url 'handle_request' req.request_id 'approve' %}"
+                                       class="btn btn-success btn-sm">同意</a>
+                                    <a href="{% url 'handle_request' req.request_id 'reject' %}"
+                                       class="btn btn-danger btn-sm">拒绝</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <div class="alert alert-info">暂无申请</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            {% if houses %}
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>地址</th>
+                            <th>是否有宠物</th>
+                            <th>可入住时间</th>
+                            <th>创建时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for house in houses %}
+                        <tr>
+                            <td>{{ house.house_id }}</td>
+                            <td>{{ house.address }}</td>
+                            <td>
+                                {% if house.has_pet == 1 %}
+                                    <span class="badge bg-success">有宠物</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">无宠物</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ house.available_from|date:"Y-m-d" }} ~ {{ house.available_to|date:"Y-m-d" }}</td>
+                            <td>{{ house.create_time|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-warning">暂无房源</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 增加房源模态框 -->
+    <div class="modal fade" id="addHouseModal" tabindex="-1" aria-labelledby="addHouseModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="post" action="{% url 'add_house' %}">
+            {% csrf_token %}
+            <div class="modal-header">
+              <h5 class="modal-title" id="addHouseModalLabel">增加房源</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="address" class="form-label">地址</label>
+                    <input type="text" class="form-control" id="address" name="address" required>
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">描述</label>
+                    <textarea class="form-control" id="description" name="description"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">是否有宠物</label>
+                    <select class="form-select" name="has_pet" required>
+                        <option value="0">无</option>
+                        <option value="1">有</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="available_from" class="form-label">可入住起始日期</label>
+                    <input type="date" class="form-control" id="available_from" name="available_from" required>
+                </div>
+                <div class="mb-3">
+                    <label for="available_to" class="form-label">可入住结束日期</label>
+                    <input type="date" class="form-control" id="available_to" name="available_to" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+              <button type="submit" class="btn btn-primary">保存房源</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 用户宠物 -->
+    <div class="card mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <span>我的宠物</span>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPetModal">
+                增加宠物
+            </button>
+        </div>
+        <div class="card-body">
+            {% if pets %}
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>名字</th>
+                            <th>类型</th>
+                            <th>年龄</th>
+                            <th>描述</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pet in pets %}
+                        <tr>
+                            <td>{{ pet.pet_id }}</td>
+                            <td>{{ pet.name }}</td>
+                            <td>{{ pet.type }}</td>
+                            <td>{{ pet.age|default:"未知" }}</td>
+                            <td>{{ pet.description|default:"无" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-warning">暂无宠物</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 增加宠物模态框 -->
+    <div class="modal fade" id="addPetModal" tabindex="-1" aria-labelledby="addPetModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="post" action="{% url 'add_pet' %}">
+            {% csrf_token %}
+            <div class="modal-header">
+              <h5 class="modal-title" id="addPetModalLabel">增加宠物</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="pet_name" class="form-label">名字</label>
+                    <input type="text" class="form-control" id="pet_name" name="name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="pet_type" class="form-label">类型</label>
+                    <input type="text" class="form-control" id="pet_type" name="type" required>
+                </div>
+                <div class="mb-3">
+                    <label for="pet_age" class="form-label">年龄</label>
+                    <input type="number" class="form-control" id="pet_age" name="age">
+                </div>
+                <div class="mb-3">
+                    <label for="pet_description" class="form-label">描述</label>
+                    <textarea class="form-control" id="pet_description" name="description"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="house_id" class="form-label">所属房源ID</label>
+                    <select class="form-select" name="house_id" required>
+                        {% for house in houses %}
+                        <option value="{{ house.house_id }}">{{ house.address }} (ID: {{ house.house_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+              <button type="submit" class="btn btn-primary">保存宠物</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 我的申请（增强签到功能） -->
+    <div class="card mb-4">
+        <div class="card-header bg-info bg-opacity-25">我的申请</div>
+        <div class="card-body">
+            {% if my_requests %}
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>房源</th>
+                        <th>时间</th>
+                        <th>状态</th>
+                        <th>签到操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for req in my_requests %}
+                    <tr>
+                        <td>{{ req.request_id }}</td>
+                        <td>{{ req.house_id }}</td>
+                        <td>{{ req.start_date }} ~ {{ req.end_date }}</td>
+                        <td>
+                            {% if req.status == 'pending' %}
+                                <span class="badge bg-warning">待处理</span>
+                            {% elif req.status == 'approved' %}
+                                <span class="badge bg-success">已通过</span>
+                            {% elif req.status == 'rejected' %}
+                                <span class="badge bg-danger">已拒绝</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if req.status == 'approved' %}
+                                {% now "Y-m-d" as today %}
+                                {% if today >= req.start_date|date:"Y-m-d" and today <= req.end_date|date:"Y-m-d" %}
+                                    {% if req.today_checkin %}
+                                        <span class="text-success">✅ 今日已签到 ({{ req.today_checkin.checkin_time|date:"H:i:s" }})</span>
+                                    {% else %}
+                                        <form method="post" action="{% url 'daily_checkin' req.request_id %}" class="d-flex flex-wrap gap-2">
+                                            {% csrf_token %}
+                                            <input type="text" name="location" class="form-control form-control-sm w-auto" placeholder="位置(可选)">
+                                            <input type="text" name="remark" class="form-control form-control-sm w-auto" placeholder="备注(可选)">
+                                            <button type="submit" class="btn btn-primary btn-sm">今日签到</button>
+                                        </form>
+                                    {% endif %}
+                                    {% if req.latest_checkin_log %}
+                                        <div class="small text-muted mt-1">
+                                            最近签到: {{ req.latest_checkin_log.checkin_time|date:"Y-m-d H:i" }}
+                                            {% if req.latest_checkin_log.location %}
+                                                <br>位置: {{ req.latest_checkin_log.location }}
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                    {% if req.task_rows %}
+                                        <div class="mt-2">
+                                            <div class="small fw-semibold mb-1">任务签到</div>
+                                            {% for item in req.task_rows %}
+                                                <div class="border rounded p-2 mb-2">
+                                                    <div class="small mb-1">
+                                                        <strong>{{ item.task.task_type }}</strong>
+                                                        {% if item.task.description %}
+                                                            - {{ item.task.description }}
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if item.today_progress %}
+                                                        <div class="text-success small">
+                                                            今日已签到 ({{ item.today_progress.update_time|date:"H:i:s" }})
+                                                        </div>
+                                                    {% else %}
+                                                        <form method="post" action="{% url 'task_checkin' req.request_id item.task.task_id %}" class="d-flex flex-wrap gap-2">
+                                                            {% csrf_token %}
+                                                            <input type="text" name="remark" class="form-control form-control-sm w-auto" placeholder="任务备注(可选)">
+                                                            <button type="submit" class="btn btn-outline-primary btn-sm">任务签到</button>
+                                                        </form>
+                                                    {% endif %}
+                                                    {% if item.latest_progress %}
+                                                        <div class="small text-muted mt-1">
+                                                            最近任务签到: {{ item.latest_progress.update_time|date:"Y-m-d H:i" }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="mt-2 pt-2 border-top">
+                                        <div class="small fw-semibold mb-1">互评与信用分</div>
+                                        <form method="post" action="{% url 'submit_rating' req.request_id %}" class="d-flex flex-wrap gap-2 mb-2">
+                                            {% csrf_token %}
+                                            <select name="score" class="form-select form-select-sm w-auto" required>
+                                                <option value="">评分</option>
+                                                <option value="5">5 分</option>
+                                                <option value="4">4 分</option>
+                                                <option value="3">3 分</option>
+                                                <option value="2">2 分</option>
+                                                <option value="1">1 分</option>
+                                            </select>
+                                            <input type="text" name="comment" class="form-control form-control-sm w-auto" placeholder="评价(可选)">
+                                            <button type="submit" class="btn btn-sm btn-success">提交互评</button>
+                                            <a href="{% url 'ai_score_assist' req.request_id %}" class="btn btn-sm btn-outline-secondary">AI 辅助评分</a>
+                                        </form>
+                                        <div class="small text-muted">
+                                            房主(ID: {{ req.owner_id }}) 信用分: {{ req.owner_credit.credit_total|default:0 }},
+                                            平均评分: {{ req.owner_credit.avg_rating|default:"暂无" }}
+                                        </div>
+                                        <div class="small text-muted">
+                                            看护人(ID: {{ req.sitter_id }}) 信用分: {{ req.sitter_credit.credit_total|default:0 }},
+                                            平均评分: {{ req.sitter_credit.avg_rating|default:"暂无" }}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">入住尚未开始或已结束</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <div class="alert alert-warning">暂无申请</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary bg-opacity-25">签到与任务报表（今日）</div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
+                <div class="col-md-3"><div class="border rounded p-2">活跃请求: {{ report_summary.active_count }}</div></div>
+                <div class="col-md-3"><div class="border rounded p-2">入住签到率: {{ report_summary.checkin_rate }}%</div></div>
+                <div class="col-md-3"><div class="border rounded p-2">任务完成率: {{ report_summary.task_rate }}%</div></div>
+                <div class="col-md-3"><div class="border rounded p-2">提醒数量: {{ report_summary.reminder_count }}</div></div>
+            </div>
+            {% if report_rows %}
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>请求ID</th>
+                        <th>房源ID</th>
+                        <th>是否活跃</th>
+                        <th>入住签到</th>
+                        <th>任务完成</th>
+                        <th>任务完成率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in report_rows %}
+                    <tr>
+                        <td>{{ row.request_id }}</td>
+                        <td>{{ row.house_id }}</td>
+                        <td>{% if row.active_today %}是{% else %}否{% endif %}</td>
+                        <td>{% if row.checkin_done %}已签到{% else %}未签到{% endif %}</td>
+                        <td>{{ row.task_done_today }}/{{ row.task_total }}</td>
+                        <td>{{ row.task_completion_rate }}%</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="alert alert-info mb-0">暂无可统计数据</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 我的合同 -->
+    <div class="card mb-4">
+        <div class="card-header bg-success bg-opacity-25">
+            我的合同
+        </div>
+        <div class="card-body">
+            {% if agreements_with_perms %}
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>合同ID</th>
+                            <th>请求ID</th>
+                            <th>房主签署</th>
+                            <th>看护人签署</th>
+                            <th>签署时间</th>
+                            <th>合同文件</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in agreements_with_perms %}
+                        {% with a=item.agreement %}
+                        <tr>
+                            <td>{{ a.agreement_id }}</td>
+                            <td>{{ a.request_id }}</td>
+                            <td>
+                                {% if a.signed_by_host %}
+                                    <span class="badge bg-success">已签</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">未签</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if a.signed_by_sitter %}
+                                    <span class="badge bg-success">已签</span>
+                                {% else %}
+                                    <span class="badge bg-warning">待签</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if a.sign_time %}
+                                    {{ a.sign_time|date:"Y-m-d H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if a.pdf_path and a.pdf_path != 'contracts/default.pdf' %}
+                                    <a href="{{ MEDIA_URL }}{{ a.pdf_path }}" target="_blank">下载合同</a>
+                                {% else %}
+                                    未生成
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.can_sign_by_sitter %}
+                                    <a href="{% url 'sign_agreement' a.agreement_id %}" class="btn btn-primary btn-sm">看护人签署</a>
+                                {% elif item.can_sign_by_host %}
+                                    <a href="{% url 'sign_agreement' a.agreement_id %}" class="btn btn-success btn-sm">房主签署</a>
+                                {% elif a.signed_by_host and a.signed_by_sitter %}
+                                    <span class="text-success">已完成</span>
+                                {% else %}
+                                    <span class="text-muted">等待对方签署</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endwith %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-info">暂无合同</div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

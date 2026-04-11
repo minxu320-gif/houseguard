@@ -1,0 +1,38 @@
+services:
+  web:
+    build: .
+    container_name: houseguard_web
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             sleep 10 &&
+             python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn house_system.wsgi:application --bind 0.0.0.0:8000"
+    environment:
+      MYSQL_DATABASE: houseguard
+      MYSQL_USER: root
+      MYSQL_PASSWORD: "123456"
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      DJANGO_ALLOWED_HOSTS: "*"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: houseguard_mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: houseguard
+      MYSQL_ROOT_PASSWORD: 123456
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

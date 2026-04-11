@@ -1,0 +1,54 @@
+{% extends "houses/base.html" %}
+{% block title %}合同详情{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="mb-0">合同详情 #{{ agreement.agreement_id }}</h1>
+        <a href="{% url 'my_dashboard' %}" class="btn btn-hg-outline btn-sm">返回工作台</a>
+    </div>
+
+    <div class="card hg-card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>状态</span>
+            <span class="badge {% if agreement.status == 'completed' %}bg-success{% elif agreement.status == 'active' %}bg-primary{% elif agreement.status == 'pending' %}bg-secondary{% elif agreement.status == 'sitter_signed' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %}">
+                {{ agreement.get_status_display }}
+            </span>
+        </div>
+        <div class="card-body">
+            <p><strong>请求ID：</strong>{{ request_obj.request_id }}</p>
+            <p><strong>房屋地址：</strong>{{ house.address }}</p>
+            <p><strong>看护人：</strong>{{ sitter.username }} ({{ sitter.user_id }})</p>
+            <p><strong>房主：</strong>{{ owner.username }} ({{ owner.user_id }})</p>
+            <p><strong>服务周期：</strong>{{ request_obj.start_date }} ~ {{ request_obj.end_date }}</p>
+            <p><strong>看护人签署时间：</strong>{{ agreement.sitter_signed_at|default:"-" }}</p>
+            <p><strong>房主确认时间：</strong>{{ agreement.owner_signed_at|default:"-" }}</p>
+            <p><strong>双方签署完成时间：</strong>{{ agreement.sign_time|default:"-" }}</p>
+            {% if agreement.pdf_path %}
+                <a href="{{ MEDIA_URL|default:'/media/' }}{{ agreement.pdf_path }}" target="_blank" class="btn btn-hg-primary btn-sm">查看合同PDF</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card hg-card">
+        <div class="card-header">合同操作</div>
+        <div class="card-body d-flex gap-2 flex-wrap">
+            {% if is_sitter and not agreement.signed_by_sitter %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="sitter_sign">
+                <button type="submit" class="btn btn-hg-primary">签署合同（看护人）</button>
+            </form>
+            {% endif %}
+
+            {% if is_owner and not agreement.signed_by_host %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="owner_confirm">
+                <button type="submit" class="btn btn-hg-success">确认合同（房主）</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

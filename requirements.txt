@@ -1,0 +1,10 @@
+# Web
+Django>=5.2,<6
+gunicorn>=23.0
+whitenoise>=6.6
+
+# MySQL（通过 pymysql.install_as_MySQLdb() 作为 Django 的 MySQLdb）
+PyMySQL>=1.1.0
+
+# PDF 合同导出
+reportlab>=4.0

@@ -1,0 +1,188 @@
+{% extends "houses/base.html" %}
+{% block title %}房源详情{% endblock %}
+
+{% block content %}
+
+<!-- 房源详情 -->
+<div class="card mb-4">
+    <div class="card-header bg-primary bg-opacity-25 text-dark">
+        房源详情 - ID: {{ house.house_id }}
+    </div>
+    <div class="card-body">
+        <p><strong>地址：</strong> {{ house.address }}</p>
+        <p><strong>描述：</strong> {{ house.description|default:"暂无描述" }}</p>
+        <p><strong>是否有宠物：</strong>
+            {% if house.has_pet == 1 %}有宠物{% else %}无宠物{% endif %}
+        </p>
+        <p><strong>可入住时间：</strong>
+            {{ house.available_from|date:"Y-m-d" }} ~ {{ house.available_to|date:"Y-m-d" }}
+        </p>
+        <p><strong>创建时间：</strong> {{ house.create_time|date:"Y-m-d H:i" }}</p>
+        <a href="{% url 'house_list' %}" class="btn btn-secondary">返回列表</a>
+        <!-- 申请按钮 -->
+        <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply">
+            <button type="submit" class="btn btn-success">申请入住</button>
+        </form>
+        <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ai_pet_plan">
+            <button type="submit" class="btn btn-outline-success">AI 生成宠物照料计划</button>
+        </form>
+        <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ai_clean_tips">
+            <button type="submit" class="btn btn-outline-info">AI 生成清扫小贴士</button>
+        </form>
+        <a href="#" class="btn btn-warning">编辑房源</a>
+    </div>
+</div>
+
+{% if pet_care_plan %}
+<div class="card mb-4">
+    <div class="card-header bg-success bg-opacity-25 text-dark">
+        AI 宠物照料计划
+    </div>
+    <div class="card-body">
+        <pre class="mb-0" style="white-space: pre-wrap;">{{ pet_care_plan }}</pre>
+    </div>
+</div>
+{% endif %}
+
+{% if cleaning_tips %}
+<div class="card mb-4">
+    <div class="card-header bg-info bg-opacity-25 text-dark">
+        AI 房屋清扫小贴士
+    </div>
+    <div class="card-body">
+        <pre class="mb-0" style="white-space: pre-wrap;">{{ cleaning_tips }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<!-- 房屋任务列表 -->
+<div class="card mb-4">
+    <div class="card-header bg-info bg-opacity-25 text-dark">
+        房屋任务
+    </div>
+    <div class="card-body">
+        {% if house_tasks %}
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>任务ID</th>
+                    <th>任务类型</th>
+                    <th>描述</th>
+                    <th>频率</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in house_tasks %}
+                <tr>
+                    <td>{{ task.task_id }}</td>
+                    <td>{{ task.task_type }}</td>
+                    <td>{{ task.description|default:"无" }}</td>
+                    <td>{{ task.frequency }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>暂无任务</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 宠物列表 -->
+<div class="card mb-4">
+    <div class="card-header bg-success bg-opacity-25 text-dark">
+        宠物信息
+    </div>
+    <div class="card-body">
+        {% if pets %}
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>宠物ID</th>
+                    <th>名字</th>
+                    <th>类型</th>
+                    <th>年龄</th>
+                    <th>描述</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pet in pets %}
+                <tr>
+                    <td>{{ pet.pet_id }}</td>
+                    <td>{{ pet.name }}</td>
+                    <td>{{ pet.type }}</td>
+                    <td>{{ pet.age|default:"未知" }}</td>
+                    <td>{{ pet.description|default:"无" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>暂无宠物信息</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 最近入住请求 -->
+<div class="card mb-4">
+    <div class="card-header bg-warning bg-opacity-25 text-dark">
+        最近入住请求
+    </div>
+    <div class="card-body">
+        {% if stay_requests %}
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>请求ID</th>
+                    <th>客户ID</th>
+                    <th>开始日期</th>
+                    <th>结束日期</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in stay_requests %}
+                <tr>
+                    <td>{{ req.request_id }}</td>
+                    <td>{{ req.sitter_id }}</td>
+                    <td>{{ req.start_date|date:"Y-m-d" }}</td>
+                    <td>{{ req.end_date|date:"Y-m-d" }}</td>
+                    <td>{{ req.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>暂无入住请求</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 风险告警 -->
+<div class="card mb-4">
+    <div class="card-header bg-danger bg-opacity-25 text-dark">
+        风险告警
+    </div>
+    <div class="card-body">
+        {% if risk_alerts %}
+        <ul class="list-group">
+            {% for alert in risk_alerts %}
+            <li class="list-group-item bg-danger bg-opacity-10 text-dark">
+                <strong>{{ alert.alert_type }}:</strong> {{ alert.message }}
+                (等级: {{ alert.level }}, 时间: {{ alert.create_time|date:"Y-m-d H:i" }})
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+            <p>暂无风险告警</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

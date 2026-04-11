@@ -1,0 +1,72 @@
+{% extends "houses/base.html" %}
+
+{% block title %}登录{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width:400px;">
+    <h2 class="mb-4">登录</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- 登录表单 -->
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="login">
+
+        <div class="mb-3">
+            <label class="form-label">用户名</label>
+            <input type="text" name="username" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">密码</label>
+            <input type="password" name="password" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">登录</button>
+    </form>
+
+    <hr>
+
+    <!-- 注册入口 -->
+    <div class="text-center">
+        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#registerForm">
+            没有账号？点击注册
+        </button>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerForm" class="collapse mt-4">
+        <h4>注册</h4>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="register">
+
+            <div class="mb-3">
+                <label class="form-label">用户名</label>
+                <input type="text" name="reg_username" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">密码</label>
+                <input type="password" name="reg_password" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">角色</label>
+                <select name="role">
+                    <option value="owner">房主</option>
+                    <option value="sitter">看护人</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">注册</button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

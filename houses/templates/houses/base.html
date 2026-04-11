@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}HouseGuard+ 房屋代管系统{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <style>
+        :root {
+            --hg-bg: #f6f8fc;
+            --hg-surface: #ffffff;
+            --hg-border: #e9edf5;
+            --hg-text: #1f2937;
+            --hg-muted: #6b7280;
+            --hg-primary: #2563eb;
+            --hg-primary-hover: #1d4ed8;
+            --hg-success: #16a34a;
+            --hg-warning: #d97706;
+            --hg-danger: #dc2626;
+            --hg-radius: 14px;
+            --hg-shadow-sm: 0 1px 2px rgba(16, 24, 40, .06);
+            --hg-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+        }
+
+        body {
+            background: var(--hg-bg);
+            color: var(--hg-text);
+            padding-top: 76px;
+            font-family: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+        }
+
+        .navbar-hg {
+            background: rgba(255, 255, 255, .94);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--hg-border);
+            box-shadow: var(--hg-shadow-sm);
+        }
+
+        .navbar-hg .navbar-brand {
+            font-weight: 700;
+            color: var(--hg-text);
+            letter-spacing: .2px;
+        }
+
+        .navbar-hg .nav-link {
+            color: var(--hg-muted);
+            font-weight: 500;
+            border-radius: 10px;
+            padding: .45rem .8rem;
+            transition: all .2s ease;
+        }
+
+        .navbar-hg .nav-link:hover,
+        .navbar-hg .nav-link.active {
+            color: var(--hg-primary);
+            background: #eaf1ff;
+        }
+
+        .page-wrap {
+            max-width: 1280px;
+        }
+
+        .page-header {
+            margin-bottom: 1.25rem;
+        }
+
+        .page-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .page-subtitle {
+            color: var(--hg-muted);
+            font-size: .92rem;
+            margin-top: .25rem;
+        }
+
+        .hg-card {
+            border: 1px solid var(--hg-border);
+            border-radius: var(--hg-radius);
+            background: var(--hg-surface);
+            box-shadow: var(--hg-shadow);
+        }
+
+        .hg-card .card-header {
+            background: transparent;
+            border-bottom: 1px solid var(--hg-border);
+            font-weight: 600;
+            padding: .95rem 1.1rem;
+        }
+
+        .hg-card .card-body {
+            padding: 1.1rem;
+        }
+
+        .hg-section {
+            margin-bottom: 1rem;
+        }
+
+        .hg-section-title {
+            font-size: .95rem;
+            font-weight: 600;
+            color: var(--hg-muted);
+            margin-bottom: .7rem;
+        }
+
+        .btn-hg-primary,
+        .btn-hg-success,
+        .btn-hg-danger,
+        .btn-hg-outline {
+            border-radius: 10px;
+            font-weight: 600;
+            padding: .45rem .85rem;
+        }
+
+        .btn-hg-primary {
+            background: var(--hg-primary);
+            border-color: var(--hg-primary);
+            color: #fff;
+        }
+
+        .btn-hg-primary:hover {
+            background: var(--hg-primary-hover);
+            border-color: var(--hg-primary-hover);
+            color: #fff;
+        }
+
+        .btn-hg-success {
+            background: var(--hg-success);
+            border-color: var(--hg-success);
+            color: #fff;
+        }
+
+        .btn-hg-danger {
+            background: var(--hg-danger);
+            border-color: var(--hg-danger);
+            color: #fff;
+        }
+
+        .btn-hg-outline {
+            background: #fff;
+            border: 1px solid var(--hg-border);
+            color: var(--hg-text);
+        }
+
+        .btn-hg-outline:hover {
+            background: #f3f6fd;
+            border-color: #dbe3f3;
+            color: var(--hg-text);
+        }
+
+        .badge-hg-soft {
+            background: #eef2ff;
+            color: #3730a3;
+            border: 1px solid #dde4ff;
+            font-weight: 600;
+            border-radius: 999px;
+            padding: .3rem .55rem;
+        }
+
+        .table-hg {
+            --bs-table-bg: transparent;
+            --bs-table-striped-bg: #f9fbff;
+            --bs-table-hover-bg: #f2f6ff;
+            border-color: var(--hg-border);
+        }
+
+        .alert {
+            border-radius: 10px;
+            border: 1px solid var(--hg-border);
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+<nav class="navbar navbar-expand-lg fixed-top navbar-hg">
+    <div class="container page-wrap px-3 px-lg-2">
+        <a class="navbar-brand" href="/houses/">HouseGuard+</a>
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#hgNavbar" aria-controls="hgNavbar" aria-expanded="false" aria-label="切换导航">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="hgNavbar">
+            <ul class="navbar-nav ms-auto gap-lg-1 mt-2 mt-lg-0">
+                <li class="nav-item"><a class="nav-link" href="/houses/">房源</a></li>
+                <li class="nav-item"><a class="nav-link" href="/houses/my/">工作台</a></li>
+                <li class="nav-item"><a class="nav-link" href="/houses/statistics/">统计</a></li>
+                <li class="nav-item"><a class="nav-link" href="/houses/risk-alerts/">风险</a></li>
+                <li class="nav-item"><a class="nav-link" href="/houses/logout/">退出</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="container page-wrap px-3 px-lg-2">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

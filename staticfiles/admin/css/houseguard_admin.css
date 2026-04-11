@@ -1,0 +1,407 @@
+/* HouseGuard — Django Admin 视觉增强（不依赖外网字体） */
+
+:root {
+  --hg-accent: #0d9488;
+  --hg-accent-hover: #0f766e;
+  --hg-accent-soft: rgba(13, 148, 136, 0.12);
+  --hg-surface: #ffffff;
+  --hg-page: #eef2f6;
+  --hg-text: #1e293b;
+  --hg-muted: #64748b;
+  --hg-border: #e2e8f0;
+  --hg-header-from: #0f172a;
+  --hg-header-to: #134e4a;
+  --hg-radius: 12px;
+  --hg-radius-sm: 8px;
+  --hg-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --hg-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+html[data-theme="dark"] {
+  --hg-surface: #1e293b;
+  --hg-page: #0f172a;
+  --hg-text: #f1f5f9;
+  --hg-muted: #94a3b8;
+  --hg-border: #334155;
+  --hg-accent-soft: rgba(45, 212, 191, 0.15);
+  --hg-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+body {
+  font-family: var(--hg-font);
+  color: var(--hg-text);
+  background: var(--hg-page);
+}
+
+#container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+#header {
+  background: linear-gradient(120deg, var(--hg-header-from) 0%, var(--hg-header-to) 55%, #115e59 100%);
+  border: none;
+  border-radius: 0 0 var(--hg-radius) var(--hg-radius);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  padding: 0.75rem 1.25rem;
+  min-height: 3.5rem;
+}
+
+#branding {
+  display: flex;
+  align-items: center;
+}
+
+#branding h1,
+#site-name {
+  padding: 0;
+  margin: 0;
+}
+
+.hg-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none !important;
+  color: #f8fafc !important;
+  font-weight: 600;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+  transition: opacity 0.15s ease;
+}
+
+.hg-brand:hover {
+  opacity: 0.92;
+}
+
+.hg-brand-mark {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #2dd4bf, var(--hg-accent));
+  box-shadow: 0 2px 10px rgba(45, 212, 191, 0.35);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-8H9v8H4a1 1 0 0 1-1-1v-9.5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 62%;
+}
+
+.hg-brand-text {
+  line-height: 1.2;
+}
+
+#user-tools {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+#user-tools a,
+#user-tools button {
+  color: #e2e8f0 !important;
+}
+
+#user-tools button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+}
+
+#user-tools button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.breadcrumbs {
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius-sm);
+  padding: 0.6rem 1rem;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  box-shadow: var(--hg-shadow);
+}
+
+.breadcrumbs a {
+  color: var(--hg-accent);
+  font-weight: 500;
+}
+
+/* 主内容区 */
+#content {
+  padding: 0 1rem 2rem;
+}
+
+#content-main {
+  min-width: 0;
+}
+
+.module {
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border) !important;
+  border-radius: var(--hg-radius);
+  box-shadow: var(--hg-shadow);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+  background: linear-gradient(90deg, var(--hg-accent-soft), transparent);
+  border-bottom: 1px solid var(--hg-border);
+  color: var(--hg-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  margin: 0;
+}
+
+.module table {
+  border-radius: 0;
+}
+
+.module th {
+  background: var(--hg-page);
+  color: var(--hg-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+html[data-theme="dark"] .module th {
+  background: #0f172a;
+}
+
+/* 首页工作台 */
+body.dashboard #content {
+  padding-top: 0.5rem;
+}
+
+.hg-dashboard-hero {
+  background: linear-gradient(135deg, var(--hg-surface) 0%, #f0fdfa 100%);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius);
+  box-shadow: var(--hg-shadow);
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+}
+
+html[data-theme="dark"] .hg-dashboard-hero {
+  background: linear-gradient(135deg, var(--hg-surface) 0%, #134e4a22 100%);
+}
+
+.hg-dashboard-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--hg-text);
+  letter-spacing: -0.02em;
+}
+
+.hg-dashboard-sub {
+  margin: 0;
+  color: var(--hg-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.hg-recent-module .actionlist li {
+  border-radius: 6px;
+  padding: 0.35rem 0;
+}
+
+/* 应用列表链接 */
+.module table a,
+.dashboard .module a {
+  color: var(--hg-accent);
+  font-weight: 500;
+}
+
+.module table a:hover {
+  color: var(--hg-accent-hover);
+}
+
+/* 按钮与提交行 */
+.button,
+input[type="submit"],
+.submit-row input,
+a.button {
+  background: var(--hg-accent) !important;
+  border-radius: 8px !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 600;
+  padding: 0.45rem 1rem !important;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.button:hover,
+input[type="submit"]:hover,
+.submit-row input:hover,
+a.button:hover {
+  background: var(--hg-accent-hover) !important;
+}
+
+.button.default,
+input[type="submit"].default,
+.submit-row input.default {
+  background: var(--hg-accent) !important;
+}
+
+.deletelink,
+.delete-confirmation form input[type="submit"] {
+  background: #dc2626 !important;
+}
+
+/* 变更列表工具栏 */
+#changelist #toolbar,
+#changelist .actions {
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius-sm);
+}
+
+#result_list {
+  border-radius: var(--hg-radius-sm);
+  overflow: hidden;
+}
+
+#result_list thead th {
+  border-color: var(--hg-border);
+}
+
+/* 表单 */
+.form-row input,
+.form-row select,
+.form-row textarea,
+.vTextField,
+input:not([type]),
+select {
+  border-radius: 8px !important;
+  border: 1px solid var(--hg-border) !important;
+  padding: 0.45rem 0.65rem !important;
+}
+
+.form-row input:focus,
+.form-row select:focus,
+.form-row textarea:focus {
+  border-color: var(--hg-accent) !important;
+  outline: 2px solid var(--hg-accent-soft);
+}
+
+fieldset.module {
+  border-radius: var(--hg-radius);
+}
+
+/* 登录页 */
+body.login {
+  background: linear-gradient(160deg, #0f172a 0%, #134e4a 45%, #0f766e 100%);
+  min-height: 100vh;
+}
+
+body.login #header {
+  border-radius: var(--hg-radius) var(--hg-radius) 0 0;
+}
+
+body.login #container {
+  max-width: 28rem;
+  margin-top: 6vh;
+  border-radius: var(--hg-radius);
+  overflow: hidden;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+}
+
+body.login #content-main {
+  padding: 1.5rem 1.75rem 2rem;
+  background: var(--hg-surface);
+}
+
+body.login .submit-row {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+body.login .submit-row input {
+  width: 100%;
+  padding: 0.65rem 1rem !important;
+  font-size: 1rem;
+}
+
+body.login #login-form .form-row label {
+  font-weight: 600;
+  color: var(--hg-muted);
+  font-size: 0.8rem;
+}
+
+/* 分页 */
+.paginator a,
+.paginator .this-page {
+  border-radius: 6px;
+}
+
+.paginator a {
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+}
+
+/* 消息 */
+.messagelist li {
+  border-radius: var(--hg-radius-sm);
+  border-width: 0 0 0 4px;
+}
+
+/* 侧边栏（若启用） */
+.toggle-nav-sidebar::before {
+  filter: contrast(1.1);
+}
+
+/* 列表页 / 编辑页右上角「增加」「历史」等（默认深灰底 → 白底） */
+.object-tools a:link,
+.object-tools a:visited {
+  background: #fff !important;
+  color: var(--hg-accent) !important;
+  border: 1px solid var(--hg-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  text-decoration: none !important;
+}
+
+.object-tools a:focus,
+.object-tools a:hover {
+  background-color: #f0fdfa !important;
+  color: var(--hg-accent-hover) !important;
+  border-color: rgba(13, 148, 136, 0.4);
+}
+
+html[data-theme="dark"] .object-tools a:link,
+html[data-theme="dark"] .object-tools a:visited {
+  background: var(--hg-surface) !important;
+  color: #5eead4 !important;
+  border: 1px solid var(--hg-border);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .object-tools a:focus,
+html[data-theme="dark"] .object-tools a:hover {
+  background-color: rgba(45, 212, 191, 0.12) !important;
+  color: #99f6e4 !important;
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
+@media (max-width: 767px) {
+  #header {
+    border-radius: 0;
+  }
+
+  .hg-brand-text {
+    font-size: 1rem;
+  }
+
+  .hg-dashboard-hero {
+    padding: 1rem;
+  }
+}

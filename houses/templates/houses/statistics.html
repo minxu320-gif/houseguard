@@ -1,0 +1,157 @@
+{% extends "houses/base.html" %}
+{% block title %}数据可视化{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="page-title mb-1">业务 Dashboard</h1>
+            <div class="page-subtitle">房屋数量、合同规模、订单与收益趋势一屏掌握</div>
+        </div>
+        <a href="{% url 'my_dashboard' %}" class="btn btn-hg-outline">返回工作台</a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="hg-card p-3 h-100">
+                <div class="small text-muted">房屋数量</div>
+                <div class="fs-3 fw-semibold">{{ house_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="hg-card p-3 h-100">
+                <div class="small text-muted">合同数量</div>
+                <div class="fs-3 fw-semibold">{{ agreement_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="hg-card p-3 h-100">
+                <div class="small text-muted">订单数量</div>
+                <div class="fs-3 fw-semibold">{{ request_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="hg-card p-3 h-100">
+                <div class="small text-muted">预估收益</div>
+                <div class="fs-3 fw-semibold">￥{{ estimated_revenue }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="hg-card">
+                <div class="card-header">订单趋势（近7天）</div>
+                <div class="card-body">
+                    <canvas id="orderTrend"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="hg-card">
+                <div class="card-header">收益趋势（近7天）</div>
+                <div class="card-body">
+                    <canvas id="revenueTrend"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="hg-card">
+                <div class="card-header">签到趋势</div>
+                <div class="card-body">
+                    <canvas id="checkinTrend"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="hg-card">
+                <div class="card-header">任务完成情况</div>
+                <div class="card-body">
+                    <canvas id="taskCompletion"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="hg-card">
+                <div class="card-header">风险分布</div>
+                <div class="card-body">
+                    <canvas id="riskDistribution"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const labels = {{ chart_labels|default:"[]"|safe }};
+const checkins = {{ chart_checkins|default:"[]"|safe }};
+const tasks = {{ chart_tasks|default:"[]"|safe }};
+const orders = {{ order_trend|default:"[]"|safe }};
+const revenues = {{ revenue_trend|default:"[]"|safe }};
+
+new Chart(document.getElementById("orderTrend"), {
+  type: "line",
+  data: {
+    labels,
+    datasets: [{
+      label: "订单数",
+      data: orders,
+      borderColor: "#2563eb",
+      backgroundColor: "rgba(37,99,235,.18)",
+      fill: true,
+      tension: 0.35
+    }]
+  },
+});
+
+new Chart(document.getElementById("revenueTrend"), {
+  type: "bar",
+  data: {
+    labels,
+    datasets: [{
+      label: "收益(元)",
+      data: revenues,
+      backgroundColor: "#16a34a"
+    }]
+  },
+});
+
+new Chart(document.getElementById("checkinTrend"), {
+  type: "line",
+  data: {
+    labels,
+    datasets: [{
+      label: "签到次数",
+      data: checkins,
+      borderColor: "#0ea5e9",
+      backgroundColor: "rgba(14,165,233,.16)",
+      fill: true,
+      tension: 0.3
+    }]
+  },
+});
+
+new Chart(document.getElementById("taskCompletion"), {
+  type: "bar",
+  data: {
+    labels,
+    datasets: [{
+      label: "完成任务数",
+      data: tasks,
+      backgroundColor: "#6366f1"
+    }]
+  },
+});
+
+new Chart(document.getElementById("riskDistribution"), {
+  type: "doughnut",
+  data: {
+    labels: ["high","medium","low"],
+    datasets: [{ label: "风险数", data: [{{ risk_high|default:0 }}, {{ risk_medium|default:0 }}, {{ risk_low|default:0 }}] }]
+  },
+});
+</script>
+{% endblock %}
