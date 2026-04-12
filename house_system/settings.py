@@ -166,8 +166,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# DeepSeek / OpenAI-compatible chat API
+# DeepSeek / OpenAI-compatible chat API（密钥勿提交仓库，用根目录 .env 或环境变量）
 DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com").rstrip("/")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("AI_API_KEY", "")
+DEEPSEEK_API_KEY = (
+    (os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("AI_API_KEY", "")).strip()
+)
 

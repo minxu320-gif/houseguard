@@ -15,9 +15,6 @@ services:
       MYSQL_HOST: db
       MYSQL_PORT: "3306"
       DJANGO_ALLOWED_HOSTS: "*"
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DEEPSEEK_API_URL: ${DEEPSEEK_API_URL:-https://api.deepseek.com}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-reasoner}
     volumes:
       - .:/app
     ports:
