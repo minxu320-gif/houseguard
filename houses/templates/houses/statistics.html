@@ -149,8 +149,8 @@ new Chart(document.getElementById("taskCompletion"), {
 new Chart(document.getElementById("riskDistribution"), {
   type: "doughnut",
   data: {
-    labels: ["high","medium","low"],
-    datasets: [{ label: "风险数", data: [{{ risk_high|default:0 }}, {{ risk_medium|default:0 }}, {{ risk_low|default:0 }}] }]
+    labels: ["critical","high","medium","low"],
+    datasets: [{ label: "风险数", data: [{{ risk_critical|default:0 }}, {{ risk_high|default:0 }}, {{ risk_medium|default:0 }}, {{ risk_low|default:0 }}] }]
   },
 });
 </script>

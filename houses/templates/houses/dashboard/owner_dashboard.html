@@ -3,8 +3,9 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="mb-3">
+    <div class="mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h1 class="mb-0">房主管理台</h1>
+        <a href="{% url 'owner_listings' %}" class="btn btn-primary btn-sm">我发布的房源</a>
     </div>
 
     <div class="row g-2 mb-4">
@@ -40,11 +41,14 @@
     {% endif %}
 
     <div class="card mb-4">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span>我的房源</span>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addHouseModal">
-                增加房源
-            </button>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'owner_listings' %}" class="btn btn-outline-primary btn-sm">集中管理</a>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addHouseModal">
+                    增加房源
+                </button>
+            </div>
         </div>
         <div class="card-body">
             {% if houses %}

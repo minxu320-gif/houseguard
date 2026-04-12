@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
+from houses.constants import RISK_LEVEL_CRITICAL, RISK_LEVEL_HIGH, RISK_LEVEL_MEDIUM
 from houses.models import RiskAlert, StayCheckinLog, StayRequest, StayStatus, StayTaskProgress, HouseTask
 from houses.services.credit_service import update_user_credit
 
@@ -48,14 +49,26 @@ def check_risk(request_id):
     last_checkin = stay_status.last_checkin_time
     if last_checkin is None:
         last_checkin = StayCheckinLog.objects.filter(request_id=request_id).order_by("-checkin_time").values_list("checkin_time", flat=True).first()
-    if last_checkin is None or (now - last_checkin) > timedelta(hours=24):
-        if not _alert_exists_today(request_id, "checkin_overdue", "high"):
+    overdue = last_checkin is None or (now - last_checkin) > timedelta(hours=24)
+    if overdue:
+        hours = 999 if last_checkin is None else (now - last_checkin).total_seconds() / 3600
+        if hours >= 48:
+            level = RISK_LEVEL_CRITICAL
+            msg = "超过48小时未签到（严重）"
+            exists = _alert_exists_today(request_id, "checkin_overdue_critical", RISK_LEVEL_CRITICAL)
+            alert_type = "checkin_overdue_critical"
+        else:
+            level = RISK_LEVEL_HIGH
+            msg = "超过24小时未签到"
+            exists = _alert_exists_today(request_id, "checkin_overdue", RISK_LEVEL_HIGH)
+            alert_type = "checkin_overdue"
+        if not exists:
             alert = RiskAlert.objects.create(
                 house_id=req.house_id,
                 request_id=req.request_id,
-                alert_type="checkin_overdue",
-                level="high",
-                message="超过24小时未签到",
+                alert_type=alert_type,
+                level=level,
+                message=msg,
                 create_time=now,
             )
             created.append(alert)
@@ -85,12 +98,12 @@ def check_risk(request_id):
         )
         incomplete = [t for t in tasks if t.task_id not in done_task_ids]
         if incomplete:
-            if not _alert_exists_today(request_id, "task_incomplete", "medium"):
+            if not _alert_exists_today(request_id, "task_incomplete", RISK_LEVEL_MEDIUM):
                 alert = RiskAlert.objects.create(
                     house_id=req.house_id,
                     request_id=req.request_id,
                     alert_type="task_incomplete",
-                    level="medium",
+                    level=RISK_LEVEL_MEDIUM,
                     message=f"任务未完成：{len(incomplete)}/{len(tasks)}",
                     create_time=now,
                 )

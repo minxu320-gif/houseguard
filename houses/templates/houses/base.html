@@ -184,6 +184,14 @@
             <ul class="navbar-nav ms-auto gap-lg-1 mt-2 mt-lg-0">
                 <li class="nav-item"><a class="nav-link" href="/houses/">房源</a></li>
                 <li class="nav-item"><a class="nav-link" href="/houses/my/">工作台</a></li>
+                {% if hg_user %}
+                {% if hg_user.role == 'owner' %}
+                <li class="nav-item"><a class="nav-link" href="{% url 'owner_listings' %}">我发布的房源</a></li>
+                {% endif %}
+                {% if hg_user.role == 'sitter' %}
+                <li class="nav-item"><a class="nav-link" href="{% url 'sitter_my_stays' %}">我的入住</a></li>
+                {% endif %}
+                {% endif %}
                 <li class="nav-item"><a class="nav-link" href="/houses/statistics/">统计</a></li>
                 <li class="nav-item"><a class="nav-link" href="/houses/risk-alerts/">风险</a></li>
                 <li class="nav-item"><a class="nav-link" href="/houses/logout/">退出</a></li>

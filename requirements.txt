@@ -8,5 +8,8 @@ cryptography>=42.0
 # MySQL
 PyMySQL>=1.1.0
 
+# Optional Redis cache (set REDIS_URL in production)
+redis>=5.0
+
 # PDF 合同导出
 reportlab>=4.0

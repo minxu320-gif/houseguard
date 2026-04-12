@@ -1,0 +1,240 @@
+{% extends "houses/base.html" %}
+{% block title %}我的入住{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="page-title mb-1">我的入住</h1>
+            <div class="page-subtitle">待签合同、入住签到与任务进度一屏查看</div>
+        </div>
+        <a href="{% url 'sitter_dashboard' %}" class="btn btn-hg-outline">看护工作台</a>
+    </div>
+
+    <div class="hg-card mb-3 border-warning" id="pending-contracts">
+        <div class="card-header bg-warning bg-opacity-25 text-dark">旅客未签约 / 合同未完成区域</div>
+        <div class="card-body">
+            {% if contract_pending %}
+            <p class="small text-muted mb-2">以下申请已获房主同意，但电子合同尚未双方签署完毕。请尽快完成签署，以免影响入住与签到。</p>
+            <div class="table-responsive">
+                <table class="table table-hg table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>申请</th>
+                            <th>房源</th>
+                            <th>入住日期</th>
+                            <th>状态说明</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in contract_pending %}
+                        <tr>
+                            <td>#{{ row.req.request_id }}</td>
+                            <td>
+                                {% if row.house %}
+                                <a href="{% url 'house_detail' row.house.house_id %}">{{ row.house.address|truncatechars:32 }}</a>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>{{ row.req.start_date }} ~ {{ row.req.end_date }}</td>
+                            <td>
+                                {% if row.missing_agreement %}
+                                <span class="badge bg-secondary">合同记录生成中</span>
+                                {% elif row.need_sitter_sign %}
+                                <span class="badge bg-warning text-dark">待您（旅客）签署</span>
+                                {% elif row.waiting_owner %}
+                                <span class="badge bg-info text-dark">待房主确认</span>
+                                {% else %}
+                                <span class="badge bg-secondary">待完善签署</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.agreement %}
+                                <a href="{% url 'agreement_detail' row.agreement.agreement_id %}" class="btn btn-hg-primary btn-sm">去签合同</a>
+                                {% else %}
+                                <span class="text-muted small">请稍后在「看护工作台」刷新</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-muted mb-0">当前没有「已批准但未完成合同」的申请。</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="hg-card">
+                <div class="card-header">今日进行中入住 · 任务整体进度</div>
+                <div class="card-body" style="min-height: 220px;">
+                    <canvas id="staySummaryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="hg-card">
+                <div class="card-header">说明</div>
+                <div class="card-body small text-muted">
+                    <p class="mb-2">柱状图展示每个进行中入住的<strong>任务平均完成比例</strong>（各任务已完成天数 ÷ 入住总天数，封顶 100%）。</p>
+                    <p class="mb-0">下方卡片中可查看每项任务明细，并在入住日当天完成签到与任务签到。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% for card in stay_cards %}
+    <div class="hg-card mb-3">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <span class="fw-semibold">入住申请 #{{ card.req.request_id }}</span>
+                {% if card.req.status == 'pending' %}<span class="badge bg-warning ms-1">待处理</span>
+                {% elif card.req.status == 'approved' %}<span class="badge bg-success ms-1">已批准</span>
+                {% elif card.req.status == 'rejected' %}<span class="badge bg-danger ms-1">已拒绝</span>
+                {% else %}<span class="badge bg-secondary ms-1">{{ card.req.status }}</span>{% endif %}
+            </div>
+            {% if card.house %}
+            <a href="{% url 'house_detail' card.house.house_id %}" class="btn btn-hg-outline btn-sm">房源详情</a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if card.house %}
+            <div class="small text-muted mb-2">{{ card.house.address }}</div>
+            {% endif %}
+            <div class="small mb-3">计划：{{ card.req.start_date }} ~ {{ card.req.end_date }}</div>
+
+            {% if card.show_progress %}
+            {% if card.in_stay_today %}
+            <div class="border rounded p-3 mb-3 bg-light">
+                <div class="fw-semibold small mb-2">今日入住签到</div>
+                {% if card.today_checkin %}
+                <div class="text-success small">已签到 {{ card.today_checkin.checkin_time|date:"H:i:s" }}</div>
+                {% else %}
+                <form method="post" action="{% url 'daily_checkin' card.req.request_id %}" class="d-flex flex-wrap gap-2">
+                    {% csrf_token %}
+                    <input type="text" name="location" class="form-control form-control-sm w-auto" placeholder="位置(可选)">
+                    <input type="text" name="remark" class="form-control form-control-sm w-auto" placeholder="备注(可选)">
+                    <button type="submit" class="btn btn-hg-primary btn-sm">今日签到</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if card.task_rows %}
+            <div class="small fw-semibold mb-2">任务列表与进度</div>
+            {% if card.in_stay_today %}
+            <div style="max-height: 200px;" class="mb-3"><canvas id="stayTaskChart{{ card.req.request_id }}" height="100"></canvas></div>
+            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>任务</th>
+                            <th>进度</th>
+                            <th>今日</th>
+                            {% if card.in_stay_today %}<th>操作</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tr in card.task_rows %}
+                        <tr>
+                            <td>
+                                <strong>{{ tr.task.task_type }}</strong>
+                                {% if tr.task.description %}<div class="small text-muted">{{ tr.task.description }}</div>{% endif %}
+                            </td>
+                            <td>{{ tr.done_count }}/{{ tr.span_days }} 天 · {{ tr.percent }}%</td>
+                            <td>{% if tr.today_done %}<span class="text-success">已签</span>{% else %}<span class="text-muted">未签</span>{% endif %}</td>
+                            {% if card.in_stay_today %}
+                            <td>
+                                {% if tr.today_done %}
+                                <span class="small text-success">已完成</span>
+                                {% else %}
+                                <form method="post" action="{% url 'task_checkin' card.req.request_id tr.task.task_id %}" class="d-inline-flex gap-1 flex-wrap">
+                                    {% csrf_token %}
+                                    <input type="text" name="remark" class="form-control form-control-sm" style="min-width:120px;" placeholder="备注(可选)">
+                                    <button type="submit" class="btn btn-hg-outline btn-sm">任务签到</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2"><span class="badge-hg-soft">本入住任务整体约 {{ card.overall_pct }}%</span></div>
+            {% else %}
+            <div class="text-muted small">合同生效后、且在入住结束日前，将在此显示任务与进度。</div>
+            {% endif %}
+            {% else %}
+            {% if card.req.status == 'approved' %}
+            <div class="alert alert-light border small mb-0">请先完成合同签署后再进行签到与任务执行。</div>
+            {% else %}
+            <div class="text-muted small mb-0">该申请当前无需任务进度展示。</div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="hg-card"><div class="card-body text-muted">暂无入住申请，请在房源列表中申请代管。</div></div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const charts = {{ charts_json }};
+charts.forEach((cfg) => {
+  const el = document.getElementById(cfg.canvasId);
+  if (!el) return;
+  new Chart(el, {
+    type: "bar",
+    data: {
+      labels: cfg.labels,
+      datasets: [{
+        label: "完成度 %",
+        data: cfg.data,
+        backgroundColor: "rgba(22,163,74,.35)",
+        borderColor: "#16a34a",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, max: 100 } },
+      plugins: { legend: { display: false } }
+    }
+  });
+});
+
+const summary = {{ summary_chart_json }};
+const sEl = document.getElementById("staySummaryChart");
+if (sEl && summary.labels && summary.labels.length) {
+  new Chart(sEl, {
+    type: "bar",
+    data: {
+      labels: summary.labels,
+      datasets: [{
+        label: "整体任务进度 %",
+        data: summary.data,
+        backgroundColor: "rgba(37,99,235,.4)",
+        borderColor: "#2563eb",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, max: 100 } }
+    }
+  });
+} else if (sEl) {
+  sEl.replaceWith(Object.assign(document.createElement("p"), { className: "text-muted small mb-0", textContent: "当前没有在入住日内的合同，暂无汇总图表。" }));
+}
+</script>
+{% endblock %}

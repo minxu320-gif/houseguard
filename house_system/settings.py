@@ -13,6 +13,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import importlib.util
 import os
+import sys
+
+from django.core.exceptions import ImproperlyConfigured
 import pymysql
 
 pymysql.install_as_MySQLdb()
@@ -34,22 +37,29 @@ except ImportError:
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+RUNNING_TESTS = "test" in sys.argv
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-ziuku#7m*lnnd*&p6cbzvyq!1xg)-(*5^$)38^ezlzz@s(y==n',
-)
+# --- Security (production defaults: DEBUG off, no hardcoded secrets) ---
+DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("1", "true", "yes")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
+SECRET_KEY = (os.getenv("DJANGO_SECRET_KEY") or "").strip()
+if not SECRET_KEY:
+    if RUNNING_TESTS:
+        SECRET_KEY = "test-secret-key-not-for-production"
+    elif DEBUG and os.getenv("DJANGO_INSECURE_DEV", "").lower() in ("1", "true", "yes"):
+        SECRET_KEY = "django-insecure-local-dev-only-change-me"
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY is required. For local DEBUG only, set DJANGO_INSECURE_DEV=1."
+        )
 
-_raw_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', '*')
-ALLOWED_HOSTS = [
-    h.strip() for h in _raw_hosts.split(',') if h.strip()
-] or ['*']
+_raw_hosts = (os.getenv("DJANGO_ALLOWED_HOSTS") or "").strip()
+if _raw_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
+elif DEBUG:
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "0.0.0.0"]
+else:
+    raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set when DEBUG=False.")
 
 
 # Application definition
@@ -93,6 +103,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "houses.context_processors.hg_session_user",
             ],
         },
     },
@@ -104,16 +115,57 @@ WSGI_APPLICATION = "house_system.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('MYSQL_DATABASE', 'houseguard'),
-        'USER': os.getenv('MYSQL_USER', 'root'),
-        'PASSWORD': os.getenv('MYSQL_PASSWORD', '123456'),
-        'HOST': os.getenv('MYSQL_HOST', 'houseguard_mysql'),
-        'PORT': os.getenv('MYSQL_PORT', '3306'),
+if RUNNING_TESTS:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
     }
-}
+elif DEBUG and os.getenv("DJANGO_USE_SQLITE", "").lower() in ("1", "true", "yes"):
+    # 本地可选：不配 MySQL 时用 SQLite（勿用于生产 / 勿与团队共用 MySQL 数据混用）
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    # 与早期项目一致：本地 DEBUG 下未设 MYSQL_PASSWORD 时默认 114514（可被 .env 覆盖）。
+    # 生产环境（DEBUG=False）必须通过环境变量提供 MYSQL_PASSWORD，禁止依赖默认值。
+    if DEBUG:
+        _mysql_password = (os.getenv("MYSQL_PASSWORD") or "").strip() or "114514"
+    else:
+        _mysql_password = (os.getenv("MYSQL_PASSWORD") or "").strip()
+        if not _mysql_password:
+            raise ImproperlyConfigured(
+                "MYSQL_PASSWORD must be set (non-empty) when DEBUG=False. "
+                "For local SQLite only, set DEBUG=true and DJANGO_USE_SQLITE=1."
+            )
+    # PyMySQL + MySQL 8 默认 caching_sha2_password：部分环境握手失败表现为 1045。
+    # DEBUG 下默认 ssl_disabled=True；若仍失败请在 MySQL 执行 scripts/mysql_native_auth.sql。
+    # 生产需 TLS 时：DEBUG=false 且不要设 ssl_disabled；或设 DJANGO_MYSQL_SSL_DISABLED=0 覆盖 DEBUG 默认。
+    _mysql_options = {
+        "charset": "utf8mb4",
+        "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+    }
+    _ssl = os.getenv("DJANGO_MYSQL_SSL_DISABLED", "").strip().lower()
+    if _ssl in ("1", "true", "yes"):
+        _mysql_options["ssl_disabled"] = True
+    elif DEBUG and _ssl not in ("0", "false", "no"):
+        _mysql_options["ssl_disabled"] = True
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv("MYSQL_DATABASE", "houseguard"),
+            "USER": os.getenv("MYSQL_USER", "root"),
+            "PASSWORD": _mysql_password,
+            "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
+            "PORT": os.getenv("MYSQL_PORT", "3306"),
+            "OPTIONS": _mysql_options,
+        }
+    }
 
 
 # Password validation
@@ -172,4 +224,44 @@ DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
 DEEPSEEK_API_KEY = (
     (os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("AI_API_KEY", "")).strip()
 )
+
+# --- Session / CSRF (tighten when HTTPS) ---
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = os.getenv(
+    "DJANGO_SESSION_COOKIE_SECURE", "true" if not DEBUG else "false"
+).lower() in ("1", "true", "yes")
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in (os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "") or "").split(",")
+    if o.strip()
+]
+
+if os.getenv("DJANGO_BEHIND_HTTPS_PROXY", "").lower() in ("1", "true", "yes"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
+
+if not DEBUG:
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+
+# --- Cache (optional Redis for sessions/rate-limit later) ---
+_redis_url = (os.getenv("REDIS_URL") or "").strip()
+if _redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _redis_url,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "houseguard-local",
+        }
+    }
 

@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 from . import views
 
 urlpatterns = [
@@ -6,6 +6,8 @@ urlpatterns = [
     path('<int:house_id>/edit/', views.edit_house, name='edit_house'),
     path('<int:house_id>/', views.house_detail, name='house_detail'),
     path('my/', views.my_dashboard, name='my_dashboard'),
+    path('my/listings/', views.owner_listings, name='owner_listings'),
+    path('my/stays/', views.sitter_my_stays, name='sitter_my_stays'),
     path('owner/', views.owner_dashboard, name='owner_dashboard'),
     path('sitter/', views.sitter_dashboard, name='sitter_dashboard'),
     path('statistics/', views.statistics_view, name='statistics'),
@@ -21,4 +23,5 @@ urlpatterns = [
     path('task-checkin/<int:request_id>/<int:task_id>/', views.task_checkin, name='task_checkin'),
     path('ai/score/<int:request_id>/', views.ai_score_assist, name='ai_score_assist'),
     path('rate/<int:request_id>/', views.submit_rating, name='submit_rating'),
+    path("api/", include("houses.api.urls")),
 ]

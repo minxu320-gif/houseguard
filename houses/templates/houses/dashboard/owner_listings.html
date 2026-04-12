@@ -1,0 +1,209 @@
+{% extends "houses/base.html" %}
+{% block title %}我发布的房源{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="page-title mb-1">我发布的房源</h1>
+            <div class="page-subtitle">集中查看、编辑房源，并查看当前入住的任务完成进度</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'owner_dashboard' %}" class="btn btn-hg-outline">房主管理台</a>
+            <button type="button" class="btn btn-hg-primary" data-bs-toggle="modal" data-bs-target="#addHouseModal">增加房源</button>
+        </div>
+    </div>
+
+    {% if not house_cards %}
+    <div class="hg-card">
+        <div class="card-body text-muted">暂无房源，请点击「增加房源」发布。</div>
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="hg-card">
+                <div class="card-header">进行中入住 · 各房源任务整体进度</div>
+                <div class="card-body" style="min-height: 200px;">
+                    <canvas id="ownerSummaryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="hg-card h-100">
+                <div class="card-header">图例说明</div>
+                <div class="card-body small text-muted">每个有「当前入住」的房源一条柱，高度为任务平均完成比例（相对入住总天数）。无进行入住时不显示柱子。</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {% for card in house_cards %}
+        <div class="col-12">
+            <div class="hg-card h-100">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <span class="fw-semibold">{{ card.house.address }}</span>
+                        <span class="text-muted small ms-2">#{{ card.house.house_id }}</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{% url 'edit_house' card.house.house_id %}" class="btn btn-hg-outline btn-sm">编辑信息</a>
+                        <a href="{% url 'house_detail' card.house.house_id %}" class="btn btn-hg-primary btn-sm">详情与任务</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="small text-muted">可入住</div>
+                            <div>{{ card.house.available_from|date:"Y-m-d" }} ~ {{ card.house.available_to|date:"Y-m-d" }}</div>
+                            <div class="mt-2 small text-muted">房源任务数</div>
+                            <div class="fw-semibold">{{ card.task_count }}</div>
+                            {% if card.house.has_pet %}
+                            <span class="badge bg-success mt-2">有宠物</span>
+                            {% else %}
+                            <span class="badge bg-secondary mt-2">无宠物</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            {% if card.active_stay %}
+                            <div class="small text-muted mb-1">当前入住申请</div>
+                            <div class="mb-2">
+                                请求 #{{ card.active_stay.request_id }} ·
+                                {% if card.contract_ok %}
+                                <span class="badge bg-success">合同已生效</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">合同待签署</span>
+                                {% endif %}
+                                {% if card.agreement %}
+                                <a href="{% url 'agreement_detail' card.agreement.agreement_id %}" class="btn btn-hg-outline btn-sm ms-1">查看合同</a>
+                                {% endif %}
+                            </div>
+                            {% if card.task_rows %}
+                            <div class="small text-muted mb-1">任务进度（相对入住总天数）</div>
+                            <div class="mb-2">
+                                <span class="badge-hg-soft">整体约 {{ card.overall_pct }}%</span>
+                            </div>
+                            <div style="max-height: 220px;"><canvas id="houseTaskChart{{ card.house.house_id }}" height="120"></canvas></div>
+                            <ul class="list-unstyled small mt-2 mb-0">
+                                {% for tr in card.task_rows %}
+                                <li class="d-flex justify-content-between border-bottom py-1">
+                                    <span>{{ tr.task.task_type }}</span>
+                                    <span class="text-muted">{{ tr.done_count }}/{{ tr.span_days }} 天 · {{ tr.percent }}%</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <div class="alert alert-light border mb-0">当前房源暂无任务模板，可在详情页添加任务。</div>
+                            {% endif %}
+                            {% else %}
+                            <div class="text-muted small">今日无进行中的已批准入住，任务进度图表将在有看护人入住且处于日期区间内时显示。</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade" id="addHouseModal" tabindex="-1" aria-labelledby="addHouseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'add_house' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="addHouseModalLabel">增加房源</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label for="address" class="form-label">地址</label>
+                <input type="text" class="form-control" id="address" name="address" required>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">描述</label>
+                <textarea class="form-control" id="description" name="description"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">是否有宠物</label>
+                <select class="form-select" name="has_pet" required>
+                    <option value="0">无</option>
+                    <option value="1">有</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="available_from" class="form-label">可入住起始日期</label>
+                <input type="date" class="form-control" id="available_from" name="available_from" required>
+            </div>
+            <div class="mb-3">
+                <label for="available_to" class="form-label">可入住结束日期</label>
+                <input type="date" class="form-control" id="available_to" name="available_to" required>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+          <button type="submit" class="btn btn-primary">保存房源</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const ownerSummary = {{ summary_chart_json }};
+const osEl = document.getElementById("ownerSummaryChart");
+if (osEl && ownerSummary.labels && ownerSummary.labels.length) {
+  new Chart(osEl, {
+    type: "bar",
+    data: {
+      labels: ownerSummary.labels,
+      datasets: [{
+        label: "任务整体进度 %",
+        data: ownerSummary.data,
+        backgroundColor: "rgba(37,99,235,.4)",
+        borderColor: "#2563eb",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, max: 100 } }
+    }
+  });
+} else if (osEl) {
+  osEl.replaceWith(Object.assign(document.createElement("p"), { className: "text-muted small mb-0", textContent: "暂无进行中入住，无汇总数据。" }));
+}
+
+const charts = {{ charts_json }};
+charts.forEach((cfg) => {
+  const el = document.getElementById(cfg.canvasId);
+  if (!el) return;
+  new Chart(el, {
+    type: "bar",
+    data: {
+      labels: cfg.labels,
+      datasets: [{
+        label: "任务完成度 %",
+        data: cfg.data,
+        backgroundColor: "rgba(37,99,235,.35)",
+        borderColor: "#2563eb",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, max: 100 }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+});
+</script>
+{% endblock %}

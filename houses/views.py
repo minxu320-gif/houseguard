@@ -1,4 +1,5 @@
 # Create your views here.
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
 from .models import House
 from django.contrib import messages
@@ -6,6 +7,7 @@ from .models import HouseTask, Pet, StayRequest, RiskAlert, StayTaskProgress
 from django.shortcuts import get_object_or_404
 from .models import User, UserProfile, UserCredit
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from django.conf import settings
@@ -20,12 +22,15 @@ from .models import StayAgreement
 from django.contrib import messages
 from .models import StayCheckinLog, StayStatus
 from .models import Rating
-from django.db.models import Sum, Count
+from django.db.models import Sum
 from django.contrib.auth.hashers import make_password, check_password
 from houses.utils.logger import log_action
 from houses.services.credit_service import update_user_credit
 from houses.services.risk_service import check_risk
 from houses.services.match_service import calculate_match_score
+from houses.services.risk_analytics_service import build_risk_alerts_page_context
+from houses.services import dashboard_service
+from houses.constants import DEFAULT_PAGE_SIZE
 from .models import StayMatchScore
 
 logger = logging.getLogger(__name__)
@@ -96,6 +101,43 @@ def _active_approved_stay(house_id):
     )
 
 
+def _stay_span_days(req):
+    return max((req.end_date - req.start_date).days + 1, 1)
+
+
+def _task_progress_chart_for_request(req, today):
+    """按入住天数计算各任务完成比例，并附今日是否已签到。"""
+    tasks = list(HouseTask.objects.filter(house_id=req.house_id).order_by('task_id'))
+    span = _stay_span_days(req)
+    labels = []
+    percents = []
+    task_rows = []
+    total = 0
+    for t in tasks:
+        done_n = StayTaskProgress.objects.filter(
+            request_id=req.request_id, task_id=t.task_id, status='done'
+        ).count()
+        pct = min(100, int(round(100 * done_n / span)))
+        labels.append((t.task_type or '任务')[:24])
+        percents.append(pct)
+        today_done = StayTaskProgress.objects.filter(
+            request_id=req.request_id,
+            task_id=t.task_id,
+            status='done',
+            update_time__date=today,
+        ).exists()
+        task_rows.append({
+            'task': t,
+            'done_count': done_n,
+            'span_days': span,
+            'percent': pct,
+            'today_done': today_done,
+        })
+        total += pct
+    overall = int(round(total / len(tasks))) if tasks else 100
+    return labels, percents, overall, task_rows
+
+
 def _add_credit_log(user_id, score_change, reason):
     UserCredit.objects.create(
         user_id=user_id,
@@ -111,8 +153,10 @@ def _rating_to_credit_delta(score):
 
 
 def house_list(request):
-    houses = House.objects.all()
-    return render(request, 'houses/house_list.html', {'houses': houses})
+    qs = House.objects.all().order_by("-house_id")
+    paginator = Paginator(qs, DEFAULT_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "houses/house_list.html", {"page_obj": page_obj})
 
 
 def house_detail(request, house_id):
@@ -320,18 +364,10 @@ def owner_dashboard(request):
     recommended_sitters = recommended_sitters[:8]
     alerts = RiskAlert.objects.filter(house_id__in=house_ids).order_by('-create_time')[:10]
 
-    agreements_with_perms = []
-    for a in agreements:
-        req = StayRequest.objects.get(request_id=a.request_id)
-        house = House.objects.get(house_id=req.house_id)
-        agreements_with_perms.append({
-            'agreement': a,
-            'can_sign_by_sitter': (user_id == req.sitter_id and not a.signed_by_sitter),
-            'can_sign_by_host': (user_id == house.owner_id and not a.signed_by_host),
-        })
+    agreements_with_perms = dashboard_service.build_agreements_with_perms(agreements, user_id)
 
-    owner_credit_total = UserCredit.objects.filter(user_id=user_id).aggregate(total=Sum('score_change'))['total'] or 0
-    return render(request, 'houses/owner_dashboard.html', {
+    owner_credit_total = dashboard_service.owner_credit_total(user_id)
+    return render(request, "houses/dashboard/owner_dashboard.html", {
         'user': user,
         'profile': profile,
         'houses': houses,
@@ -340,7 +376,7 @@ def owner_dashboard(request):
         'recommended_sitters': recommended_sitters,
         'alerts': alerts,
         'agreements_with_perms': agreements_with_perms,
-        'MEDIA_URL': settings.MEDIA_URL,
+        'MEDIA_URL': dashboard_service.media_url(),
         'owner_credit_total': owner_credit_total,
     })
 
@@ -452,7 +488,19 @@ def sitter_dashboard(request):
 
     sitter_credit_total = credit_score_map.get(user_id, {}).get('credit_total', 0)
     alerts = RiskAlert.objects.filter(request_id__in=request_ids).order_by('-create_time')[:10] if request_ids else []
-    return render(request, 'houses/sitter_dashboard.html', {
+
+    ag_by_req = {}
+    if request_ids:
+        ag_by_req = {a.request_id: a for a in StayAgreement.objects.filter(request_id__in=request_ids)}
+    pending_contract_n = 0
+    for req in my_requests:
+        if req.status != 'approved':
+            continue
+        ag = ag_by_req.get(req.request_id)
+        if not ag or not (ag.signed_by_sitter and ag.signed_by_host):
+            pending_contract_n += 1
+
+    return render(request, "houses/dashboard/sitter_dashboard.html", {
         'user': user,
         'profile': profile,
         'my_requests': my_requests,
@@ -461,6 +509,160 @@ def sitter_dashboard(request):
         'report_summary': report_summary,
         'sitter_credit_total': sitter_credit_total,
         'alerts': alerts,
+        'pending_contract_n': pending_contract_n,
+    })
+
+
+def owner_listings(request):
+    """房主：集中查看、编辑已发布房源，并可视化当前入住的任务进度。"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect('login')
+    user = User.objects.get(user_id=user_id)
+    if user.role != 'owner':
+        messages.info(request, '「我发布的房源」仅房主可用。')
+        return redirect('sitter_dashboard')
+
+    today = timezone.localdate()
+    houses = House.objects.filter(owner_id=user_id).order_by('-house_id')
+    house_cards = []
+    charts_for_js = []
+    for house in houses:
+        task_count = HouseTask.objects.filter(house_id=house.house_id).count()
+        active = (
+            StayRequest.objects.filter(
+                house_id=house.house_id,
+                status='approved',
+                start_date__lte=today,
+                end_date__gte=today,
+            )
+            .order_by('-request_id')
+            .first()
+        )
+        agreement = None
+        labels, percents, overall, task_rows = [], [], None, []
+        if active:
+            agreement = StayAgreement.objects.filter(request_id=active.request_id).first()
+            labels, percents, overall, task_rows = _task_progress_chart_for_request(active, today)
+            if labels:
+                charts_for_js.append({
+                    'canvasId': f'houseTaskChart{house.house_id}',
+                    'labels': labels,
+                    'data': percents,
+                })
+        house_cards.append({
+            'house': house,
+            'task_count': task_count,
+            'active_stay': active,
+            'agreement': agreement,
+            'task_rows': task_rows,
+            'overall_pct': overall if active else None,
+            'contract_ok': (
+                bool(agreement and agreement.signed_by_sitter and agreement.signed_by_host)
+            ),
+        })
+
+    summary_labels = []
+    summary_data = []
+    for card in house_cards:
+        if card['overall_pct'] is not None:
+            summary_labels.append(f"房源 #{card['house'].house_id}")
+            summary_data.append(card['overall_pct'])
+
+    return render(request, "houses/dashboard/owner_listings.html", {
+        'user': user,
+        'house_cards': house_cards,
+        'charts_json': mark_safe(json.dumps(charts_for_js)),
+        'summary_chart_json': mark_safe(json.dumps({'labels': summary_labels, 'data': summary_data})),
+    })
+
+
+def sitter_my_stays(request):
+    """看护人（旅客）：待签合同区域 + 我的入住与任务进度图表。"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect('login')
+    user = User.objects.get(user_id=user_id)
+    if user.role != 'sitter':
+        messages.info(request, '「我的入住」仅看护人（旅客）可用。')
+        return redirect('owner_dashboard')
+
+    today = timezone.localdate()
+    my_requests = list(StayRequest.objects.filter(sitter_id=user_id).order_by('-request_id'))
+    request_ids = [r.request_id for r in my_requests]
+
+    checkin_today_map = {}
+    if request_ids:
+        checkin_today_map = {
+            log.request_id: log
+            for log in StayCheckinLog.objects.filter(
+                request_id__in=request_ids,
+                checkin_time__date=today,
+            )
+        }
+
+    house_ids = {r.house_id for r in my_requests}
+    house_map = {h.house_id: h for h in House.objects.filter(house_id__in=house_ids)}
+
+    contract_pending = []
+    stay_cards = []
+    charts_for_js = []
+    summary_labels = []
+    summary_data = []
+
+    for req in my_requests:
+        house = house_map.get(req.house_id)
+        if not house:
+            house = House.objects.filter(house_id=req.house_id).first()
+        ag = StayAgreement.objects.filter(request_id=req.request_id).first()
+
+        if req.status == 'approved' and not (ag and ag.signed_by_sitter and ag.signed_by_host):
+            contract_pending.append({
+                'req': req,
+                'house': house,
+                'agreement': ag,
+                'need_sitter_sign': bool(ag and not ag.signed_by_sitter),
+                'waiting_owner': bool(ag and ag.signed_by_sitter and not ag.signed_by_host),
+                'missing_agreement': ag is None,
+            })
+
+        show_progress = (
+            req.status == 'approved'
+            and ag
+            and ag.signed_by_sitter
+            and ag.signed_by_host
+            and today <= req.end_date
+        )
+        labels, percents, overall, task_rows = [], [], None, []
+        if show_progress:
+            labels, percents, overall, task_rows = _task_progress_chart_for_request(req, today)
+            in_stay_today = req.start_date <= today <= req.end_date
+            if in_stay_today and labels:
+                charts_for_js.append({
+                    'canvasId': f'stayTaskChart{req.request_id}',
+                    'labels': labels,
+                    'data': percents,
+                })
+                summary_labels.append(f"入住 #{req.request_id}")
+                summary_data.append(overall)
+
+        stay_cards.append({
+            'req': req,
+            'house': house,
+            'agreement': ag,
+            'today_checkin': checkin_today_map.get(req.request_id),
+            'task_rows': task_rows,
+            'overall_pct': overall,
+            'show_progress': show_progress,
+            'in_stay_today': req.start_date <= today <= req.end_date if req.status == 'approved' else False,
+        })
+
+    return render(request, "houses/dashboard/sitter_my_stays.html", {
+        'user': user,
+        'contract_pending': contract_pending,
+        'stay_cards': stay_cards,
+        'charts_json': mark_safe(json.dumps(charts_for_js)),
+        'summary_chart_json': mark_safe(json.dumps({'labels': summary_labels, 'data': summary_data})),
     })
 
 
@@ -498,6 +700,7 @@ def statistics_view(request):
     risk_high = RiskAlert.objects.filter(request_id__in=req_ids, level='high').count()
     risk_medium = RiskAlert.objects.filter(request_id__in=req_ids, level='medium').count()
     risk_low = RiskAlert.objects.filter(request_id__in=req_ids, level='low').count()
+    risk_critical = RiskAlert.objects.filter(request_id__in=req_ids, level='critical').count()
 
     # Dashboard KPIs
     house_count = len(house_ids)
@@ -529,6 +732,7 @@ def statistics_view(request):
         'risk_high': risk_high,
         'risk_medium': risk_medium,
         'risk_low': risk_low,
+        'risk_critical': risk_critical,
         'house_count': house_count,
         'agreement_count': agreement_count,
         'request_count': request_count,
@@ -543,89 +747,14 @@ def risk_alerts_view(request):
     if not user_id:
         return redirect('/houses/login/')
     user = User.objects.get(user_id=user_id)
-    if user.role == 'owner':
-        house_ids = list(House.objects.filter(owner_id=user_id).values_list('house_id', flat=True))
-        alerts = RiskAlert.objects.filter(house_id__in=house_ids).order_by('-create_time')
-    else:
-        req_ids = list(StayRequest.objects.filter(sitter_id=user_id).values_list('request_id', flat=True))
-        alerts = RiskAlert.objects.filter(request_id__in=req_ids).order_by('-create_time')
-
-    level_counter = {'high': 0, 'medium': 0, 'low': 0}
-    for a in alerts:
-        if a.level in level_counter:
-            level_counter[a.level] += 1
-
-    # High-risk orders: grouped by request_id with high alerts
-    high_risk_orders = []
-    high_rows = (
-        alerts.filter(level='high')
-        .exclude(request_id__isnull=True)
-        .values('request_id', 'house_id')
-        .annotate(alert_count=Count('alert_id'))
-        .order_by('-alert_count', '-request_id')[:20]
-    )
-    for row in high_rows:
-        req = StayRequest.objects.filter(request_id=row['request_id']).first()
-        high_risk_orders.append({
-            'request_id': row['request_id'],
-            'house_id': row['house_id'],
-            'alert_count': row['alert_count'],
-            'status': req.status if req else '-',
-        })
-
-    # Abnormal users: aggregate risk by sitter and owner
-    user_risk_count = {}
-    req_map = {r.request_id: r for r in StayRequest.objects.filter(request_id__in=alerts.values_list('request_id', flat=True))}
-    house_map = {h.house_id: h for h in House.objects.filter(house_id__in=alerts.values_list('house_id', flat=True))}
-    for a in alerts:
-        req = req_map.get(a.request_id)
-        house = house_map.get(a.house_id)
-        related_uids = []
-        if req:
-            related_uids.append(req.sitter_id)
-        if house:
-            related_uids.append(house.owner_id)
-        for uid in related_uids:
-            if uid is None:
-                continue
-            if uid not in user_risk_count:
-                user_risk_count[uid] = {'high': 0, 'medium': 0, 'low': 0, 'total': 0}
-            if a.level in ('high', 'medium', 'low'):
-                user_risk_count[uid][a.level] += 1
-            user_risk_count[uid]['total'] += 1
-
-    abnormal_users = []
-    user_map = {u.user_id: u for u in User.objects.filter(user_id__in=user_risk_count.keys())}
-    for uid, stat in user_risk_count.items():
-        risk_score = stat['high'] * 100 + stat['medium'] * 60 + stat['low'] * 30
-        if risk_score >= 200:
-            risk_color = 'red'
-        elif risk_score >= 80:
-            risk_color = 'yellow'
-        else:
-            risk_color = 'green'
-        abnormal_users.append({
-            'user_id': uid,
-            'username': user_map.get(uid).username if user_map.get(uid) else f'用户{uid}',
-            'total': stat['total'],
-            'high': stat['high'],
-            'medium': stat['medium'],
-            'low': stat['low'],
-            'risk_score': risk_score,
-            'risk_color': risk_color,
-        })
-    abnormal_users.sort(key=lambda x: x['risk_score'], reverse=True)
-    abnormal_users = abnormal_users[:20]
-    alerts = alerts[:200]
-    return render(request, 'houses/risk_alerts.html', {
-        'user': user,
-        'alerts': alerts,
-        'risk_high': level_counter['high'],
-        'risk_medium': level_counter['medium'],
-        'risk_low': level_counter['low'],
-        'high_risk_orders': high_risk_orders,
-        'abnormal_users': abnormal_users,
-    })
+    ctx = build_risk_alerts_page_context(user=user, request_get=request.GET)
+    ctx["user"] = user
+    ctx["trend_labels_json"] = mark_safe(json.dumps(ctx["trend_labels"]))
+    ctx["trend_critical_json"] = mark_safe(json.dumps(ctx["trend_critical"]))
+    ctx["trend_high_json"] = mark_safe(json.dumps(ctx["trend_high"]))
+    ctx["trend_medium_json"] = mark_safe(json.dumps(ctx["trend_medium"]))
+    ctx["trend_low_json"] = mark_safe(json.dumps(ctx["trend_low"]))
+    return render(request, "houses/risk/alerts.html", ctx)
 
 def login_view(request):
     if request.method == 'POST':
@@ -676,7 +805,7 @@ def login_view(request):
                 )
                 messages.success(request, "注册成功，请登录")
 
-    return render(request, 'houses/login.html')
+    return render(request, "houses/auth/login.html")
 
 def logout_view(request):
     request.session.flush()  # 清除 session
@@ -709,7 +838,7 @@ def add_house(request):
             create_time=timezone.now()
         )
 
-    return redirect('my_dashboard')
+    return redirect('owner_listings')
 
 
 def edit_house(request, house_id):
@@ -731,7 +860,7 @@ def edit_house(request, house_id):
         house.available_to = request.POST.get('available_to')
         house.save()
         messages.success(request, "房源信息已更新")
-        return redirect('house_detail', house_id=house_id)
+        return redirect('owner_listings')
 
     return render(request, 'houses/house_edit.html', {'house': house})
 

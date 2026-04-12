@@ -38,9 +38,9 @@
         <a href="{% url 'my_dashboard' %}" class="btn btn-hg-outline">我的工作台</a>
     </div>
 
-    {% if houses %}
+    {% if page_obj.paginator.count %}
     <div class="row g-4 house-grid">
-            {% for house in houses %}
+            {% for house in page_obj %}
             <div class="col-sm-6 col-lg-4">
                 <div class="card h-100">
                     <img
@@ -68,6 +68,19 @@
             </div>
             {% endfor %}
     </div>
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4 d-flex justify-content-center" aria-label="房源分页">
+        <ul class="pagination mb-0">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">上一页</a></li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">下一页</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
     {% else %}
         <div class="alert alert-warning">暂无房源数据</div>
     {% endif %}

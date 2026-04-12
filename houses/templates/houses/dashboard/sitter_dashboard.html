@@ -3,9 +3,12 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <h1 class="mb-0">看护工作台</h1>
-        <a href="{% url 'logout' %}" class="btn btn-danger bg-danger-subtle text-danger border-danger-subtle">登出</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'sitter_my_stays' %}" class="btn btn-primary btn-sm">我的入住</a>
+            <a href="{% url 'logout' %}" class="btn btn-danger bg-danger-subtle text-danger border-danger-subtle">登出</a>
+        </div>
     </div>
 
     <div class="row g-2 mb-4">
@@ -22,6 +25,16 @@
             </div>
         </div>
     </div>
+
+    {% if pending_contract_n %}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning bg-opacity-25 text-dark">待签合同（旅客）</div>
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>您有 <strong>{{ pending_contract_n }}</strong> 条已批准申请尚未完成双方电子签署，可能影响入住与签到。</div>
+            <a href="{% url 'sitter_my_stays' %}#pending-contracts" class="btn btn-warning text-dark btn-sm">前往「我的入住」处理</a>
+        </div>
+    </div>
+    {% endif %}
 
     {% if reminders %}
     <div class="card mb-4 border-warning">

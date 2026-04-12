@@ -15,6 +15,9 @@ class House(models.Model):
         db_table = "house"
         verbose_name = "房源"
         verbose_name_plural = "房源"
+        indexes = [
+            models.Index(fields=["owner_id", "create_time"], name="house_owner_ct_idx"),
+        ]
 
     def __str__(self):
         return f"{self.address[:40]}…" if len(self.address) > 40 else self.address
@@ -31,6 +34,9 @@ class HouseTask(models.Model):
         db_table = "house_task"
         verbose_name = "房源任务"
         verbose_name_plural = "房源任务"
+        indexes = [
+            models.Index(fields=["house_id"], name="house_task_house_idx"),
+        ]
 
     def __str__(self):
         return f"{self.task_type} (#{self.task_id})"
@@ -73,17 +79,22 @@ class Rating(models.Model):
 
 class RiskAlert(models.Model):
     alert_id = models.BigAutoField(primary_key=True)
-    house_id = models.BigIntegerField()
-    request_id = models.BigIntegerField(blank=True, null=True)
+    house_id = models.BigIntegerField(db_index=True)
+    request_id = models.BigIntegerField(blank=True, null=True, db_index=True)
     alert_type = models.CharField(max_length=50)
-    level = models.CharField(max_length=6)
+    level = models.CharField(max_length=16, db_index=True)
     message = models.CharField(max_length=255)
-    create_time = models.DateTimeField()
+    create_time = models.DateTimeField(db_index=True)
 
     class Meta:
         db_table = "risk_alert"
         verbose_name = "风险告警"
         verbose_name_plural = "风险告警"
+        indexes = [
+            models.Index(fields=["house_id", "create_time"], name="risk_alert_house_ct_idx"),
+            models.Index(fields=["request_id", "create_time"], name="risk_alert_req_ct_idx"),
+            models.Index(fields=["level", "create_time"], name="risk_alert_level_ct_idx"),
+        ]
 
     def __str__(self):
         return f"[{self.level}] {self.message[:50]}"
@@ -204,6 +215,10 @@ class StayRequest(models.Model):
         db_table = "stay_request"
         verbose_name = "托管申请"
         verbose_name_plural = "托管申请"
+        indexes = [
+            models.Index(fields=["house_id", "status"], name="stay_req_house_st_idx"),
+            models.Index(fields=["sitter_id", "status"], name="stay_req_sitter_st_idx"),
+        ]
 
     def __str__(self):
         return f"申请 {self.request_id} · 房源 {self.house_id} · {self.status}"

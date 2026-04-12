@@ -1,0 +1,241 @@
+{% extends "houses/base.html" %}
+{% block title %}风险告警{% endblock %}
+
+{% block extra_head %}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="page-title mb-1">风控中心</h1>
+            <div class="page-subtitle">筛选、趋势与分级展示 · 支持 CRITICAL / HIGH / MEDIUM / LOW</div>
+        </div>
+        <a href="{% url 'my_dashboard' %}" class="btn btn-hg-outline">返回工作台</a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="hg-card p-3 h-100 border-start border-4 border-danger">
+                <div class="small text-muted">严重 CRITICAL</div>
+                <div class="fs-3 fw-semibold text-danger">{{ risk_critical }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="hg-card p-3 h-100 border-start border-4" style="border-color:#dc2626!important;">
+                <div class="small text-muted">高 HIGH</div>
+                <div class="fs-3 fw-semibold" style="color:#b91c1c;">{{ risk_high }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="hg-card p-3 h-100 border-start border-4 border-warning">
+                <div class="small text-muted">中 MEDIUM</div>
+                <div class="fs-3 fw-semibold text-warning">{{ risk_medium }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="hg-card p-3 h-100 border-start border-4 border-success">
+                <div class="small text-muted">低 LOW</div>
+                <div class="fs-3 fw-semibold text-success">{{ risk_low }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hg-card mb-3">
+        <div class="card-header">筛选</div>
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-0">房源 ID</label>
+                    <input type="number" name="house_id" class="form-control form-control-sm" value="{{ filter_house_id|default_if_none:'' }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-0">请求 ID</label>
+                    <input type="number" name="request_id" class="form-control form-control-sm" value="{{ filter_request_id|default_if_none:'' }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-0">等级</label>
+                    <select name="level" class="form-select form-select-sm">
+                        <option value="">全部</option>
+                        <option value="critical" {% if filter_level == 'critical' %}selected{% endif %}>critical</option>
+                        <option value="high" {% if filter_level == 'high' %}selected{% endif %}>high</option>
+                        <option value="medium" {% if filter_level == 'medium' %}selected{% endif %}>medium</option>
+                        <option value="low" {% if filter_level == 'low' %}selected{% endif %}>low</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-0">开始日期</label>
+                    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_date_from }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-0">结束日期</label>
+                    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_date_to }}">
+                </div>
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-hg-primary btn-sm w-100">应用</button>
+                    <a href="{% url 'risk_alerts' %}" class="btn btn-hg-outline btn-sm w-100">重置</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="hg-card mb-4">
+        <div class="card-header">近 14 日风险趋势</div>
+        <div class="card-body">
+            <div id="riskTrendChart" style="height:320px;width:100%;min-height:280px;"></div>
+        </div>
+    </div>
+
+    <div class="card hg-card mb-4">
+        <div class="card-header bg-danger bg-opacity-10 text-danger">高严重度订单（HIGH + CRITICAL）</div>
+        <div class="card-body">
+            {% if high_risk_orders %}
+                <div class="table-responsive">
+                <table class="table table-hg table-bordered table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>请求ID</th>
+                            <th>房源ID</th>
+                            <th>状态</th>
+                            <th>告警次数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in high_risk_orders %}
+                        <tr>
+                            <td>{{ item.request_id }}</td>
+                            <td>{{ item.house_id }}</td>
+                            <td>{{ item.status }}</td>
+                            <td><span class="badge bg-danger">{{ item.alert_count }}</span></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info mb-0">暂无高严重度订单</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card hg-card mb-4">
+        <div class="card-header bg-warning bg-opacity-25 text-dark">异常用户（样本内聚合）</div>
+        <div class="card-body">
+            {% if abnormal_users %}
+                <div class="table-responsive">
+                <table class="table table-hg table-bordered table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>用户ID</th>
+                            <th>用户名</th>
+                            <th>风险评分</th>
+                            <th>等级</th>
+                            <th>严重/高/中/低</th>
+                            <th>总告警</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for u in abnormal_users %}
+                        <tr>
+                            <td>{{ u.user_id }}</td>
+                            <td>{{ u.username }}</td>
+                            <td>{{ u.risk_score }}</td>
+                            <td>
+                                {% if u.risk_color == 'red' %}
+                                    <span class="badge bg-danger">红</span>
+                                {% elif u.risk_color == 'yellow' %}
+                                    <span class="badge bg-warning text-dark">黄</span>
+                                {% else %}
+                                    <span class="badge bg-success">绿</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ u.critical|default:0 }} / {{ u.high }} / {{ u.medium }} / {{ u.low }}</td>
+                            <td>{{ u.total }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info mb-0">暂无异常用户</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card hg-card">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>告警明细</span>
+            <span class="small text-muted">共 {{ paginator.count }} 条 · 每页 {{ paginator.per_page }} 条</span>
+        </div>
+        <div class="card-body">
+            {% if alerts_page %}
+                <div class="table-responsive">
+                <table class="table table-hg table-bordered table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>时间</th>
+                            <th>等级</th>
+                            <th>类型</th>
+                            <th>房源ID</th>
+                            <th>请求ID</th>
+                            <th>内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for a in alerts_page %}
+                        <tr class="{% if a.level == 'critical' %}table-danger{% elif a.level == 'high' %}table-danger{% elif a.level == 'medium' %}table-warning{% endif %}">
+                            <td>{{ a.create_time|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <span class="badge {% if a.level == 'critical' %}bg-dark{% elif a.level == 'high' %}bg-danger{% elif a.level == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ a.level }}</span>
+                            </td>
+                            <td>{{ a.alert_type }}</td>
+                            <td>{{ a.house_id }}</td>
+                            <td>{{ a.request_id|default:"-" }}</td>
+                            <td>{{ a.message }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% if alerts_page.has_other_pages %}
+                <nav class="mt-3" aria-label="分页">
+                    <ul class="pagination pagination-sm flex-wrap mb-0">
+                        {% if alerts_page.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ alerts_page.previous_page_number }}&house_id={{ filter_house_id|default_if_none:'' }}&request_id={{ filter_request_id|default_if_none:'' }}&level={{ filter_level }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">上一页</a></li>
+                        {% endif %}
+                        <li class="page-item disabled"><span class="page-link">{{ alerts_page.number }} / {{ paginator.num_pages }}</span></li>
+                        {% if alerts_page.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ alerts_page.next_page_number }}&house_id={{ filter_house_id|default_if_none:'' }}&request_id={{ filter_request_id|default_if_none:'' }}&level={{ filter_level }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">下一页</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info mb-0">暂无告警明细</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+const chart = echarts.init(document.getElementById('riskTrendChart'));
+chart.setOption({
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['critical','high','medium','low'], bottom: 0 },
+  grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+  xAxis: { type: 'category', boundaryGap: false, data: {{ trend_labels_json }} },
+  yAxis: { type: 'value', name: '条数' },
+  series: [
+    { name: 'critical', type: 'line', smooth: true, data: {{ trend_critical_json }}, itemStyle: { color: '#111827' } },
+    { name: 'high', type: 'line', smooth: true, data: {{ trend_high_json }}, itemStyle: { color: '#dc2626' } },
+    { name: 'medium', type: 'line', smooth: true, data: {{ trend_medium_json }}, itemStyle: { color: '#d97706' } },
+    { name: 'low', type: 'line', smooth: true, data: {{ trend_low_json }}, itemStyle: { color: '#6b7280' } }
+  ]
+});
+window.addEventListener('resize', () => chart.resize());
+</script>
+{% endblock %}
