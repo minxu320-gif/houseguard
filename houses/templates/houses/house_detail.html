@@ -25,6 +25,7 @@
             <input type="hidden" name="action" value="apply">
             <button type="submit" class="btn btn-success">申请入住</button>
         </form>
+        {% if show_ai_features %}
         <form method="post" style="display:inline;">
             {% csrf_token %}
             <input type="hidden" name="action" value="ai_pet_plan">
@@ -35,7 +36,12 @@
             <input type="hidden" name="action" value="ai_clean_tips">
             <button type="submit" class="btn btn-outline-info">AI 生成清扫小贴士</button>
         </form>
-        <a href="#" class="btn btn-warning">编辑房源</a>
+        {% else %}
+        <p class="text-muted small mb-0 d-inline-block ms-2">AI 宠物照料与清扫建议仅在「申请已批准且当前日期在入住开始与结束日期之间」时可用。</p>
+        {% endif %}
+        {% if is_owner %}
+        <a href="{% url 'edit_house' house.house_id %}" class="btn btn-warning">编辑房源</a>
+        {% endif %}
     </div>
 </div>
 
@@ -63,11 +69,40 @@
 
 <!-- 房屋任务列表 -->
 <div class="card mb-4">
-    <div class="card-header bg-info bg-opacity-25 text-dark">
-        房屋任务
+    <div class="card-header bg-info bg-opacity-25 text-dark d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>房屋任务</span>
+        {% if active_stay %}
+        <span class="badge bg-primary">当前入住请求 #{{ active_stay.request_id }}（进度按入住天数估算）</span>
+        {% endif %}
     </div>
     <div class="card-body">
-        {% if house_tasks %}
+        {% if is_owner %}
+        <form method="post" class="row g-2 align-items-end border rounded p-3 mb-4 bg-light">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_task">
+            <div class="col-md-3">
+                <label class="form-label small mb-0">任务类型</label>
+                <input type="text" name="task_type" class="form-control form-control-sm" placeholder="例如：清扫" maxlength="50" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small mb-0">描述（可选）</label>
+                <input type="text" name="description" class="form-control form-control-sm" placeholder="补充说明">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">频率</label>
+                <select name="frequency" class="form-select form-select-sm">
+                    <option value="每日">每日</option>
+                    <option value="每周">每周</option>
+                    <option value="单次">单次</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary btn-sm w-100">添加任务</button>
+            </div>
+        </form>
+        {% endif %}
+
+        {% if task_progress_rows %}
         <table class="table table-bordered table-hover">
             <thead class="table-light">
                 <tr>
@@ -75,16 +110,29 @@
                     <th>任务类型</th>
                     <th>描述</th>
                     <th>频率</th>
+                    <th style="min-width: 200px;">履约进度</th>
                 </tr>
             </thead>
             <tbody>
-                {% for task in house_tasks %}
+                {% for row in task_progress_rows %}
+                {% with task=row.task %}
                 <tr>
                     <td>{{ task.task_id }}</td>
                     <td>{{ task.task_type }}</td>
                     <td>{{ task.description|default:"无" }}</td>
                     <td>{{ task.frequency }}</td>
+                    <td>
+                        {% if row.span_days %}
+                        <div class="small text-muted mb-1">已完成 {{ row.done_count }} / 入住 {{ row.span_days }} 天（按每日可签到估算）</div>
+                        <div class="progress" style="height: 22px;" role="progressbar" aria-valuenow="{{ row.percent }}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar bg-success" style="width: {{ row.percent }}%;">{{ row.percent }}%</div>
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">尚无进行中的入住，看护人签到后将在此显示进度</span>
+                        {% endif %}
+                    </td>
                 </tr>
+                {% endwith %}
                 {% endfor %}
             </tbody>
         </table>

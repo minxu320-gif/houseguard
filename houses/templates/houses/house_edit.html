@@ -1,0 +1,42 @@
+{% extends "houses/base.html" %}
+{% block title %}编辑房源{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 640px;">
+    <h1 class="h3 mb-3">编辑房源</h1>
+    <div class="card">
+        <div class="card-body">
+            <form method="post" action="{% url 'edit_house' house.house_id %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="address" class="form-label">地址</label>
+                    <input type="text" class="form-control" id="address" name="address" value="{{ house.address }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">描述</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ house.description|default_if_none:'' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">是否有宠物</label>
+                    <select class="form-select" name="has_pet" required>
+                        <option value="0" {% if house.has_pet == 0 %}selected{% endif %}>无</option>
+                        <option value="1" {% if house.has_pet == 1 %}selected{% endif %}>有</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="available_from" class="form-label">可入住起始日期</label>
+                    <input type="date" class="form-control" id="available_from" name="available_from" value="{{ house.available_from|date:'Y-m-d' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="available_to" class="form-label">可入住结束日期</label>
+                    <input type="date" class="form-control" id="available_to" name="available_to" value="{{ house.available_to|date:'Y-m-d' }}" required>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <a href="{% url 'house_detail' house.house_id %}" class="btn btn-outline-secondary">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

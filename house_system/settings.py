@@ -24,6 +24,13 @@ if MySQLdb.version_info < (2, 2, 1):
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    pass
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -103,7 +110,7 @@ DATABASES = {
         'NAME': os.getenv('MYSQL_DATABASE', 'houseguard'),
         'USER': os.getenv('MYSQL_USER', 'root'),
         'PASSWORD': os.getenv('MYSQL_PASSWORD', '123456'),
-        'HOST': os.getenv('MYSQL_HOST', '127.0.0.1'),
+        'HOST': os.getenv('MYSQL_HOST', 'houseguard_mysql'),
         'PORT': os.getenv('MYSQL_PORT', '3306'),
     }
 }
@@ -159,8 +166,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# DeepSeek AI
-DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com")
+# DeepSeek / OpenAI-compatible chat API
+DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com").rstrip("/")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
-DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("AI_API_KEY", "")
 

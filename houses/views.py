@@ -81,6 +81,21 @@ def _get_house_owner_id(house_id):
     return house.owner_id if house else None
 
 
+def _active_approved_stay(house_id):
+    """当前日期处于已批准申请的入住区间内时返回该申请（用于 AI 与任务进度）。"""
+    today = timezone.localdate()
+    return (
+        StayRequest.objects.filter(
+            house_id=house_id,
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today,
+        )
+        .order_by('-request_id')
+        .first()
+    )
+
+
 def _add_credit_log(user_id, score_change, reason):
     UserCredit.objects.create(
         user_id=user_id,
@@ -102,7 +117,6 @@ def house_list(request):
 
 def house_detail(request, house_id):
     house = House.objects.get(house_id=house_id)
-    house_tasks = HouseTask.objects.filter(house_id=house_id)
     pets = Pet.objects.filter(house_id=house_id)
     stay_requests = StayRequest.objects.filter(house_id=house_id)
     risk_alerts = RiskAlert.objects.filter(house_id=house_id)
@@ -110,9 +124,13 @@ def house_detail(request, house_id):
     pet_care_plan = None
     cleaning_tips = None
 
+    session_uid = request.session.get('user_id')
+    is_owner = session_uid is not None and int(session_uid) == int(house.owner_id)
+
     # ===== 申请逻辑 =====
     if request.method == 'POST':
         action = request.POST.get('action')
+        on_stay = _active_approved_stay(house_id)
 
         if action == 'apply':
             user_id = request.session.get('user_id')
@@ -135,31 +153,87 @@ def house_detail(request, house_id):
                 calculate_match_score(req.request_id)
                 log_action(request=request, user_id=user_id, action="stay_request.applied", target_id=req.request_id, target_type="stay_request")
         elif action == 'ai_pet_plan':
-            pet_text = "；".join([f"{p.name}({p.type})" for p in pets]) if pets else "暂无宠物信息"
-            task_text = "；".join([f"{t.task_type}:{t.description or '无描述'}" for t in house_tasks]) if house_tasks else "暂无任务"
-            prompt = (
-                f"请为以下房屋生成7天宠物照料计划，按天列出喂食、清洁、互动和注意事项。\n"
-                f"房屋地址：{house.address}\n"
-                f"宠物：{pet_text}\n"
-                f"房屋任务：{task_text}\n"
-                "输出中文，分点清晰，便于执行。"
-            )
-            pet_care_plan, err = _call_deepseek(prompt)
-            if err:
-                messages.error(request, err)
+            if not on_stay:
+                messages.error(request, "仅在已批准且当前处于入住期内可使用 AI 宠物照料计划")
+            else:
+                house_tasks_ai = HouseTask.objects.filter(house_id=house_id)
+                pet_text = "；".join([f"{p.name}({p.type})" for p in pets]) if pets else "暂无宠物信息"
+                task_text = "；".join([f"{t.task_type}:{t.description or '无描述'}" for t in house_tasks_ai]) if house_tasks_ai else "暂无任务"
+                prompt = (
+                    f"请为以下房屋生成7天宠物照料计划，按天列出喂食、清洁、互动和注意事项。\n"
+                    f"房屋地址：{house.address}\n"
+                    f"宠物：{pet_text}\n"
+                    f"房屋任务：{task_text}\n"
+                    "输出中文，分点清晰，便于执行。"
+                )
+                pet_care_plan, err = _call_deepseek(prompt)
+                if err:
+                    messages.error(request, err)
         elif action == 'ai_clean_tips':
-            task_text = "；".join([f"{t.task_type}:{t.description or '无描述'}" for t in house_tasks]) if house_tasks else "暂无任务"
-            prompt = (
-                f"请根据以下房屋信息生成房屋打扫小贴士（按区域：客厅、卧室、厨房、卫生间），"
-                f"并给出每日、每周清洁清单。\n"
-                f"房屋地址：{house.address}\n"
-                f"描述：{house.description or '无'}\n"
-                f"任务：{task_text}\n"
-                "输出中文，简洁可执行。"
-            )
-            cleaning_tips, err = _call_deepseek(prompt)
-            if err:
-                messages.error(request, err)
+            if not on_stay:
+                messages.error(request, "仅在已批准且当前处于入住期内可使用 AI 清扫小贴士")
+            else:
+                house_tasks_ai = HouseTask.objects.filter(house_id=house_id)
+                task_text = "；".join([f"{t.task_type}:{t.description or '无描述'}" for t in house_tasks_ai]) if house_tasks_ai else "暂无任务"
+                prompt = (
+                    f"请根据以下房屋信息生成房屋打扫小贴士（按区域：客厅、卧室、厨房、卫生间），"
+                    f"并给出每日、每周清洁清单。\n"
+                    f"房屋地址：{house.address}\n"
+                    f"描述：{house.description or '无'}\n"
+                    f"任务：{task_text}\n"
+                    "输出中文，简洁可执行。"
+                )
+                cleaning_tips, err = _call_deepseek(prompt)
+                if err:
+                    messages.error(request, err)
+        elif action == 'add_task':
+            if not is_owner:
+                messages.error(request, "仅房主可为该房源添加任务")
+            else:
+                task_type = (request.POST.get('task_type') or '').strip()
+                description = (request.POST.get('description') or '').strip() or None
+                freq = (request.POST.get('frequency') or '每日').strip()[:6]
+                if not task_type:
+                    messages.error(request, "请填写任务类型")
+                else:
+                    HouseTask.objects.create(
+                        house_id=house_id,
+                        task_type=task_type[:50],
+                        description=description,
+                        frequency=freq or '每日',
+                    )
+                    messages.success(request, "任务已添加")
+            return redirect('house_detail', house_id=house_id)
+
+    house_tasks = HouseTask.objects.filter(house_id=house_id)
+    active_stay = _active_approved_stay(house_id)
+    show_ai_features = active_stay is not None
+
+    task_progress_rows = []
+    if active_stay:
+        span_days = (active_stay.end_date - active_stay.start_date).days + 1
+        span_days = max(span_days, 1)
+        for t in house_tasks:
+            done_n = StayTaskProgress.objects.filter(
+                request_id=active_stay.request_id,
+                task_id=t.task_id,
+                status='done',
+            ).count()
+            pct = min(100, int(round(100 * done_n / span_days)))
+            task_progress_rows.append({
+                'task': t,
+                'done_count': done_n,
+                'span_days': span_days,
+                'percent': pct,
+            })
+    else:
+        for t in house_tasks:
+            task_progress_rows.append({
+                'task': t,
+                'done_count': 0,
+                'span_days': None,
+                'percent': None,
+            })
 
     return render(request, 'houses/house_detail.html', {
         'house': house,
@@ -169,6 +243,10 @@ def house_detail(request, house_id):
         'risk_alerts': risk_alerts,
         'pet_care_plan': pet_care_plan,
         'cleaning_tips': cleaning_tips,
+        'show_ai_features': show_ai_features,
+        'active_stay': active_stay,
+        'task_progress_rows': task_progress_rows,
+        'is_owner': is_owner,
     })
 
 def my_dashboard(request):
@@ -633,32 +711,75 @@ def add_house(request):
 
     return redirect('my_dashboard')
 
+
+def edit_house(request, house_id):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect('login')
+    user = User.objects.get(user_id=user_id)
+    if user.role != 'owner':
+        messages.error(request, "只有房主可以编辑房源")
+        return redirect('my_dashboard')
+
+    house = get_object_or_404(House, house_id=house_id, owner_id=user_id)
+
+    if request.method == 'POST':
+        house.address = (request.POST.get('address') or '').strip()
+        house.description = (request.POST.get('description') or '').strip() or None
+        house.has_pet = int(request.POST.get('has_pet', 0))
+        house.available_from = request.POST.get('available_from')
+        house.available_to = request.POST.get('available_to')
+        house.save()
+        messages.success(request, "房源信息已更新")
+        return redirect('house_detail', house_id=house_id)
+
+    return render(request, 'houses/house_edit.html', {'house': house})
+
+
 def add_pet(request):
-    if request.method == "POST":
-        user_id = request.session.get('user_id')
+    if request.method != "POST":
+        return redirect('my_dashboard')
 
-        if not user_id:
-            return redirect('login')
-        user = User.objects.get(user_id=user_id)
-        if user.role != 'owner':
-            messages.error(request, "只有房主可以新增宠物")
-            return redirect('/houses/my/')
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return redirect('login')
 
-        name = request.POST.get('name')
-        pet_type = request.POST.get('type')
-        age = request.POST.get('age') or None
-        description = request.POST.get('description')
-        house_id = request.POST.get('house_id')
+    user = User.objects.get(user_id=user_id)
+    if user.role != 'owner':
+        messages.error(request, "只有房主可以新增宠物")
+        return redirect('my_dashboard')
 
-        Pet.objects.create(
-            house_id=house_id,
-            name=name,
-            type=pet_type,
-            age=age,
-            description=description
-        )
+    house_id_raw = request.POST.get('house_id')
+    try:
+        house_id = int(house_id_raw)
+    except (TypeError, ValueError):
+        messages.error(request, "请选择所属房源")
+        return redirect('owner_dashboard')
 
-    return redirect('my_dashboard')
+    if not House.objects.filter(house_id=house_id, owner_id=user_id).exists():
+        messages.error(request, "所选房源不存在或无权操作")
+        return redirect('owner_dashboard')
+
+    name = (request.POST.get('name') or '').strip()
+    pet_type = (request.POST.get('type') or '').strip()
+    if not name or not pet_type:
+        messages.error(request, "请填写宠物名字与类型")
+        return redirect('owner_dashboard')
+
+    age_raw = (request.POST.get('age') or '').strip()
+    age = int(age_raw) if age_raw.isdigit() else None
+
+    description = (request.POST.get('description') or '').strip() or None
+
+    Pet.objects.create(
+        house_id=house_id,
+        name=name[:50],
+        type=pet_type[:50],
+        age=age,
+        description=description,
+    )
+    messages.success(request, "宠物已添加")
+    return redirect('owner_dashboard')
 
 def handle_request(request, request_id, action):
     user_id = request.session.get('user_id')
@@ -699,7 +820,7 @@ def handle_request(request, request_id, action):
                 agreement.pdf_path = pdf_path
                 agreement.save()
 
-            # ========== 新增：创建入住状态（用于每日签到） ==========
+            # ========== 创建入住状态（用于每日签到） ==========
             stay_status, _ = StayStatus.objects.get_or_create(
                 request_id=request_id,
                 defaults={
@@ -831,7 +952,7 @@ def generate_contract_pdf(agreement_id, request_obj, house, owner, sitter):
     os.makedirs(contract_dir, exist_ok=True)
     filepath = os.path.join(contract_dir, filename)
 
-    # ✅ 注册中文字体（关键）
+    # 注册中文字体
     font_path = r"D:\django_data\house_system\static\fonts\simhei.ttf"
     pdfmetrics.registerFont(TTFont('SimHei', font_path))
 
@@ -874,7 +995,7 @@ def generate_contract_pdf(agreement_id, request_obj, house, owner, sitter):
     ]
 
     for line in lines:
-        # ✅ 自动换页
+        # 自动换页
         if y < 60:
             c.showPage()
             c.setFont("SimHei", 12)
@@ -883,7 +1004,7 @@ def generate_contract_pdf(agreement_id, request_obj, house, owner, sitter):
         c.drawString(40, y, line)
         y -= line_height
 
-    # ================= 签名区（加分项🔥） =================
+    # ================= 签名区 =================
     y -= 30
     c.drawString(40, y, "甲方签字：____________________")
     c.drawString(300, y, "乙方签字：____________________")

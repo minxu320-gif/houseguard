@@ -1,4 +1,4 @@
-FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.12-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -7,8 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY requirements.txt /app/
 
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt \
-    && python -c "import whitenoise; print('whitenoise OK', whitenoise.__version__)"
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 COPY . /app/
 
