@@ -224,6 +224,11 @@ DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
 DEEPSEEK_API_KEY = (
     (os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("AI_API_KEY", "")).strip()
 )
+# deepseek-reasoner 往往 >30s，过短会报 “The read operation timed out”
+try:
+    DEEPSEEK_REQUEST_TIMEOUT = int(os.getenv("DEEPSEEK_REQUEST_TIMEOUT", "120"))
+except ValueError:
+    DEEPSEEK_REQUEST_TIMEOUT = 120
 
 # --- Session / CSRF (tighten when HTTPS) ---
 SESSION_COOKIE_HTTPONLY = True

@@ -65,7 +65,8 @@ def _call_deepseek(prompt):
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        _timeout = int(getattr(settings, "DEEPSEEK_REQUEST_TIMEOUT", 120) or 120)
+        with urllib.request.urlopen(req, timeout=_timeout) as resp:
             body = json.loads(resp.read().decode('utf-8'))
             content = body.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
             if not content:
@@ -926,53 +927,57 @@ def handle_request(request, request_id, action):
 
         if action == 'approve':
             req.status = 'approved'
+            req.save(update_fields=['status'])
             log_action(request=request, user_id=user_id, action="stay_request.approved", target_id=request_id, target_type="stay_request")
 
-            # 使用 get_or_create 避免重复生成合同
-            agreement, created = StayAgreement.objects.get_or_create(
-                request_id=request_id,
-                defaults={
-                    'signed_by_host': 0,
-                    'signed_by_sitter': 0,
-                    'status': 'pending',
-                    'sitter_signed_at': None,
-                    'owner_signed_at': None,
-                    'pdf_path': '',
-                    'sign_time': None
-                }
-            )
-            # 如果新创建了合同，生成真实的 PDF
-            if created:
-                owner = User.objects.get(user_id=house.owner_id)
-                sitter = User.objects.get(user_id=req.sitter_id)
-                pdf_path = generate_contract_pdf(agreement.agreement_id, req, house, owner, sitter)
-                agreement.pdf_path = pdf_path
-                agreement.save()
+            # 审批状态优先落库，后续合同/入住状态异常不影响本次审批生效
+            try:
+                # 使用 get_or_create 避免重复生成合同
+                agreement, created = StayAgreement.objects.get_or_create(
+                    request_id=request_id,
+                    defaults={
+                        'signed_by_host': 0,
+                        'signed_by_sitter': 0,
+                        'status': 'pending',
+                        'sitter_signed_at': None,
+                        'owner_signed_at': None,
+                        'pdf_path': '',
+                        'sign_time': None
+                    }
+                )
+                # 如果新创建了合同，生成真实的 PDF
+                if created:
+                    owner = User.objects.get(user_id=house.owner_id)
+                    sitter = User.objects.get(user_id=req.sitter_id)
+                    pdf_path = generate_contract_pdf(agreement.agreement_id, req, house, owner, sitter)
+                    agreement.pdf_path = pdf_path
+                    agreement.save()
 
-            # ========== 创建入住状态（用于每日签到） ==========
-            stay_status, _ = StayStatus.objects.get_or_create(
-                request_id=request_id,
-                defaults={
-                    'current_status': 'active',
-                    'checkin_required': 1,
-                    'last_checkin_time': None,
-                    'aborrmal_flag': 0,
-                    'update_time': timezone.now()
-                }
-            )
-            # 如果已存在，确保状态正确（可选）
-            if not stay_status.current_status == 'active':
-                stay_status.current_status = 'active'
-                stay_status.checkin_required = 1
-                stay_status.update_time = timezone.now()
-                stay_status.save()
-            # =================================================
+                # ========== 创建入住状态（用于每日签到） ==========
+                stay_status, _ = StayStatus.objects.get_or_create(
+                    request_id=request_id,
+                    defaults={
+                        'current_status': 'active',
+                        'checkin_required': 1,
+                        'last_checkin_time': None,
+                        'aborrmal_flag': 0,
+                        'update_time': timezone.now()
+                    }
+                )
+                # 如果已存在，确保状态正确（可选）
+                if not stay_status.current_status == 'active':
+                    stay_status.current_status = 'active'
+                    stay_status.checkin_required = 1
+                    stay_status.update_time = timezone.now()
+                    stay_status.save()
+                # =================================================
+            except Exception as approve_side_effect_error:
+                print("审批后置处理错误：", approve_side_effect_error)
 
         elif action == 'reject':
             req.status = 'rejected'
             log_action(request=request, user_id=user_id, action="stay_request.rejected", target_id=request_id, target_type="stay_request")
-
-        req.save()
+            req.save(update_fields=['status'])
 
     except Exception as e:
         print("审批错误：", e)
