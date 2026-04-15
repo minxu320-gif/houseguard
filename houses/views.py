@@ -35,6 +35,16 @@ from .models import StayMatchScore
 
 logger = logging.getLogger(__name__)
 
+_AI_ERR_MSG_MAX = 800
+
+
+def _short_user_message(msg, limit=_AI_ERR_MSG_MAX):
+    """Keep message framework / session payload small (avoids 500 on huge API error bodies)."""
+    s = str(msg)
+    if len(s) <= limit:
+        return s
+    return s[: limit - 1] + "…"
+
 
 def _call_deepseek(prompt):
     """Call DeepSeek chat API and return generated text."""
@@ -54,32 +64,45 @@ def _call_deepseek(prompt):
         "temperature": 0.7
     }
 
-    req = urllib.request.Request(
-        url=f"{api_url}/chat/completions",
-        data=json.dumps(payload).encode('utf-8'),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        },
-        method="POST",
-    )
-
     try:
+        raw_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            url=f"{api_url}/chat/completions",
+            data=raw_body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            method="POST",
+        )
         _timeout = int(getattr(settings, "DEEPSEEK_REQUEST_TIMEOUT", 120) or 120)
         with urllib.request.urlopen(req, timeout=_timeout) as resp:
-            body = json.loads(resp.read().decode('utf-8'))
-            content = body.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
-            if not content:
-                return None, "AI 返回内容为空"
-            return content, None
+            body = json.loads(resp.read().decode("utf-8"))
+        choice0 = (body.get("choices") or [{}])[0]
+        if not isinstance(choice0, dict):
+            logger.warning("DeepSeek unexpected choice shape: %s", type(choice0).__name__)
+            return None, "AI 返回格式异常"
+        msg = choice0.get("message") or {}
+        if not isinstance(msg, dict):
+            msg = {}
+        content = (msg.get("content") or "").strip()
+        # deepseek-reasoner 等模型可能把说明放在 reasoning_content
+        if not content:
+            content = (msg.get("reasoning_content") or "").strip()
+        if not content:
+            logger.warning("DeepSeek empty content; keys=%s", list(msg.keys()) if isinstance(msg, dict) else type(msg))
+            return None, "AI 返回内容为空"
+        return content, None
     except urllib.error.HTTPError as e:
         try:
-            detail = e.read().decode('utf-8')
+            detail = e.read().decode("utf-8", errors="replace")
         except Exception:
             detail = str(e)
-        return None, f"AI 请求失败: {detail}"
+        logger.warning("DeepSeek HTTP %s: %s", getattr(e, "code", "?"), detail[:2000])
+        return None, _short_user_message(f"AI 请求失败: {detail}")
     except Exception as e:
-        return None, f"AI 请求异常: {e}"
+        logger.exception("DeepSeek request failed")
+        return None, _short_user_message(f"AI 请求异常: {e}")
 
 
 def _get_house_owner_id(house_id):
@@ -170,7 +193,10 @@ def house_detail(request, house_id):
     cleaning_tips = None
 
     session_uid = request.session.get('user_id')
-    is_owner = session_uid is not None and int(session_uid) == int(house.owner_id)
+    try:
+        is_owner = session_uid is not None and int(session_uid) == int(house.owner_id)
+    except (TypeError, ValueError):
+        is_owner = False
 
     # ===== 申请逻辑 =====
     if request.method == 'POST':
