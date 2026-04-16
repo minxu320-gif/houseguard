@@ -8,6 +8,15 @@ def hg_session_user(request):
         return {"hg_user": None}
     try:
         u = User.objects.get(user_id=uid)
-        return {"hg_user": u}
-    except User.DoesNotExist:
+        # 仅向模板暴露基础字段，避免把完整 ORM 对象放入全局模板上下文。
+        return {
+            "hg_user": {
+                "user_id": u.user_id,
+                "username": u.username,
+                "role": u.role,
+            }
+        }
+    except (User.DoesNotExist, TypeError, ValueError):
+        return {"hg_user": None}
+    except Exception:
         return {"hg_user": None}
