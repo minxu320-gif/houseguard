@@ -213,14 +213,15 @@ CONTRACT_PDF_FONT_PATH = (os.getenv("CONTRACT_PDF_FONT_PATH") or "").strip()
 
 # DeepSeek / OpenAI 兼容 API 配置（用于智能对话等功能）
 DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com").rstrip("/")
-DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
+# 页面内同步生成内容优先使用更快的聊天模型，避免上游超时导致 500
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 DEEPSEEK_API_KEY = (os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("AI_API_KEY", "")).strip()
 
-# 请求超时设置，deepseek-reasoner 模型响应较慢，默认 120 秒
+# 同步页面请求默认使用较短超时，给 Django / 反向代理保留返回错误提示的时间
 try:
-    DEEPSEEK_REQUEST_TIMEOUT = int(os.getenv("DEEPSEEK_REQUEST_TIMEOUT", "120"))
+    DEEPSEEK_REQUEST_TIMEOUT = int(os.getenv("DEEPSEEK_REQUEST_TIMEOUT", "25"))
 except ValueError:
-    DEEPSEEK_REQUEST_TIMEOUT = 120
+    DEEPSEEK_REQUEST_TIMEOUT = 25
 
 # ---------- Session 与 CSRF 安全加固 ----------
 SESSION_COOKIE_HTTPONLY = True          # 防止 JavaScript 读取 session cookie

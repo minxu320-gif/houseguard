@@ -13,6 +13,7 @@ from reportlab.pdfgen import canvas
 from django.conf import settings
 import os
 import json
+import socket
 import urllib.request
 import urllib.error
 import logging
@@ -53,7 +54,7 @@ def _call_deepseek(prompt):
         return None, "未配置 DEEPSEEK_API_KEY"
 
     api_url = getattr(settings, 'DEEPSEEK_API_URL', 'https://api.deepseek.com').rstrip('/')
-    model = getattr(settings, 'DEEPSEEK_MODEL', 'deepseek-reasoner')
+    model = getattr(settings, 'DEEPSEEK_MODEL', 'deepseek-chat')
 
     payload = {
         "model": model,
@@ -61,7 +62,7 @@ def _call_deepseek(prompt):
             {"role": "system", "content": "你是房屋代管平台的专业助手，回答要实用、清晰、可执行。"},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.7
+        "temperature": 0.7,
     }
 
     try:
@@ -75,7 +76,7 @@ def _call_deepseek(prompt):
             },
             method="POST",
         )
-        _timeout = int(getattr(settings, "DEEPSEEK_REQUEST_TIMEOUT", 120) or 120)
+        _timeout = int(getattr(settings, "DEEPSEEK_REQUEST_TIMEOUT", 25) or 25)
         with urllib.request.urlopen(req, timeout=_timeout) as resp:
             body = json.loads(resp.read().decode("utf-8"))
         choice0 = (body.get("choices") or [{}])[0]
@@ -100,6 +101,9 @@ def _call_deepseek(prompt):
             detail = str(e)
         logger.warning("DeepSeek HTTP %s: %s", getattr(e, "code", "?"), detail[:2000])
         return None, _short_user_message(f"AI 请求失败: {detail}")
+    except socket.timeout:
+        logger.warning("DeepSeek request timeout after %ss", _timeout)
+        return None, f"AI 服务响应超时（>{_timeout} 秒），请稍后重试"
     except Exception as e:
         logger.exception("DeepSeek request failed")
         return None, _short_user_message(f"AI 请求异常: {e}")
