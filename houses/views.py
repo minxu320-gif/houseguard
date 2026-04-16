@@ -180,7 +180,17 @@ def house_list(request):
     qs = House.objects.all().order_by("-house_id")
     paginator = Paginator(qs, DEFAULT_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
-    return render(request, "houses/house_list.html", {"page_obj": page_obj})
+    return render(request, "houses/house_list.html", {
+        "houses": list(page_obj.object_list),
+        "total_count": paginator.count,
+        "current_page": page_obj.number,
+        "total_pages": paginator.num_pages,
+        "has_other_pages": page_obj.has_other_pages(),
+        "has_previous": page_obj.has_previous(),
+        "has_next": page_obj.has_next(),
+        "previous_page_number": page_obj.previous_page_number() if page_obj.has_previous() else None,
+        "next_page_number": page_obj.next_page_number() if page_obj.has_next() else None,
+    })
 
 
 def house_detail(request, house_id):
