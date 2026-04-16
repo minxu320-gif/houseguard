@@ -1,8 +1,20 @@
-{# 用法: {% include "houses/components/hg_stat_card.html" with label="信用分" value="120" hint="较上月" %} #}
+{# 统计卡片组件 #}
+{# 使用说明：引入本组件时传入 label（指标名称）、value（数值）、hint（补充说明，可选） #}
+
 <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
-    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ label }}</p>
-    <p class="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">{{ value }}</p>
+
+    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        {{ label }}
+    </p>
+
+    <p class="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">
+        {{ value }}
+    </p>
+
     {% if hint %}
-    <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-500">{{ hint }}</p>
+    <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+        {{ hint }}
+    </p>
     {% endif %}
+
 </div>

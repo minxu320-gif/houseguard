@@ -1,64 +1,103 @@
 {% extends "houses/layout.html" %}
+
+{# 页面标题块 #}
 {% block title %}登录{% endblock %}
 
+{# 主体内容块 #}
 {% block body %}
+{# 外层容器：使用相对定位，最小高度撑满视口，水平垂直居中 #}
 <div class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12">
+
+    {# 背景渐变层（装饰用，不影响交互） #}
     <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-100/80 via-zinc-50 to-zinc-50 dark:from-brand-950/40 dark:via-zinc-950 dark:to-zinc-950"></div>
+
+    {# 背景光晕效果 1 #}
     <div class="pointer-events-none absolute -left-32 top-1/4 h-72 w-72 rounded-full bg-brand-400/20 blur-3xl dark:bg-brand-600/10"></div>
+
+    {# 背景光晕效果 2 #}
     <div class="pointer-events-none absolute -right-20 bottom-1/4 h-64 w-64 rounded-full bg-teal-400/15 blur-3xl dark:bg-teal-600/10"></div>
 
+    {# 主内容卡片容器：最大宽度中等，位于前景层 #}
     <div class="relative w-full max-w-md">
+
+        {# 头部品牌区域 #}
         <div class="mb-8 flex flex-col items-center text-center">
+            {# 品牌标识图标 #}
             <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-lg font-bold text-white shadow-glow">H</div>
+            {# 主标题 #}
             <h1 class="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">HouseGuard</h1>
+            {# 副标题/标语 #}
             <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">房屋代管 · 安全签约 · 风险可视</p>
         </div>
 
+        {# 登录/注册表单卡片 #}
         <div class="rounded-2xl border border-zinc-200/80 bg-white/90 p-6 shadow-soft backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90 sm:p-8">
+
+            {# 登录表单标题 #}
             <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">登录</h2>
             <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">使用已有账号进入工作台</p>
 
+            {# 登录表单 #}
             <form method="post" action="" data-hg-loading class="mt-6 space-y-4 text-left">
+                {# Django CSRF 保护 #}
                 {% csrf_token %}
+                {# 隐藏字段标识表单动作类型 #}
                 <input type="hidden" name="action" value="login">
+
+                {# 用户名字段 #}
                 <div>
                     <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">用户名</label>
                     <input type="text" name="username" required autocomplete="username"
                            class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none transition placeholder:text-zinc-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
                 </div>
+
+                {# 密码字段 #}
                 <div>
                     <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">密码</label>
                     <input type="password" name="password" required autocomplete="current-password"
                            class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
                 </div>
+
+                {# 登录提交按钮 #}
                 <button type="submit" class="flex w-full items-center justify-center rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-500 active:scale-[0.99]">
                     登录
                 </button>
             </form>
 
+            {# 分割线：登录与注册之间的视觉分隔 #}
             <div class="my-6 flex items-center gap-3">
                 <div class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800"></div>
                 <span class="text-xs text-zinc-400">或</span>
                 <div class="h-px flex-1 bg-zinc-200 dark:bg-zinc-800"></div>
             </div>
 
+            {# 切换显示注册表单的按钮 #}
             <button type="button" data-hg-toggle="registerForm" class="w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
                 没有账号？点击注册
             </button>
 
+            {# 注册表单区域（默认隐藏，通过按钮切换显示） #}
             <div id="registerForm" class="mt-6 hidden border-t border-zinc-100 pt-6 dark:border-zinc-800">
                 <h3 class="text-base font-semibold text-zinc-900 dark:text-white">注册</h3>
+
+                {# 注册表单 #}
                 <form method="post" action="" data-hg-loading class="mt-4 space-y-4 text-left">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="register">
+
+                    {# 注册用户名 #}
                     <div>
                         <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">用户名</label>
                         <input type="text" name="reg_username" required class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
                     </div>
+
+                    {# 注册密码 #}
                     <div>
                         <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">密码</label>
                         <input type="password" name="reg_password" required class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
                     </div>
+
+                    {# 角色选择下拉框 #}
                     <div>
                         <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">角色</label>
                         <select name="role" class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
@@ -66,14 +105,18 @@
                             <option value="sitter">看护人</option>
                         </select>
                     </div>
+
+                    {# 注册提交按钮 #}
                     <button type="submit" class="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500">注册</button>
                 </form>
             </div>
         </div>
 
+        {# 底部辅助链接 #}
         <div class="mt-6 flex justify-center gap-4 text-xs text-zinc-500">
             <a href="/houses/" class="hover:text-brand-600 dark:hover:text-brand-400">浏览房源</a>
             <span class="text-zinc-300 dark:text-zinc-700">|</span>
+            {# 主题切换按钮 #}
             <button type="button" data-hg-theme-toggle class="hover:text-zinc-800 dark:hover:text-white">切换深色</button>
         </div>
     </div>

@@ -2,7 +2,7 @@ from .models import User
 
 
 def hg_session_user(request):
-    """Expose minimal session user for templates (custom auth, not Django auth)."""
+    """向模板暴露最小会话用户信息（自定义认证，非 Django 内置认证）。"""
     uid = request.session.get("user_id")
     if not uid:
         return {"hg_user": None}

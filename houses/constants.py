@@ -1,6 +1,6 @@
-"""Domain constants (risk levels, pagination defaults)."""
+"""领域常量定义（风险等级、分页默认值）。"""
 
-# Risk levels (stored lowercase in DB)
+# 风险等级（在数据库中以小写形式存储）
 RISK_LEVEL_LOW = "low"
 RISK_LEVEL_MEDIUM = "medium"
 RISK_LEVEL_HIGH = "high"

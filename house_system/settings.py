@@ -1,5 +1,5 @@
 """
-Django 项目配置文件 - 房屋管理系统
+Django 项目配置文件 - 房屋代管系统
 """
 
 import importlib.util

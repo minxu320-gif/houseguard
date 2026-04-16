@@ -5,9 +5,9 @@ from houses.models import SystemLog, User
 
 def log_action(*, request=None, user_id=None, action="", target_id=None, target_type=None, log_level="INFO"):
     """
-    Write a SystemLog row for auditing.
-    - request: optional Django request (used to infer ip address and role)
-    - user_id: required if request is None
+    写入一条用于审计的 SystemLog 日志记录。
+    - request：可选的 Django request（用于推断 IP 地址和用户角色）
+    - user_id：当 request 为 None 时必填
     """
     ip = None
     if request is not None:

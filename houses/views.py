@@ -1,4 +1,4 @@
-# Create your views here.
+# 视图函数定义
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
 from .models import House
@@ -39,7 +39,7 @@ _AI_ERR_MSG_MAX = 800
 
 
 def _short_user_message(msg, limit=_AI_ERR_MSG_MAX):
-    """Keep message framework / session payload small (avoids 500 on huge API error bodies)."""
+    """限制提示消息长度，避免超长错误内容导致页面异常。"""
     s = str(msg)
     if len(s) <= limit:
         return s
@@ -47,7 +47,7 @@ def _short_user_message(msg, limit=_AI_ERR_MSG_MAX):
 
 
 def _call_deepseek(prompt):
-    """Call DeepSeek chat API and return generated text."""
+    """调用 DeepSeek 聊天接口并返回生成文本。"""
     api_key = getattr(settings, 'DEEPSEEK_API_KEY', '')
     if not api_key:
         return None, "未配置 DEEPSEEK_API_KEY"
@@ -86,7 +86,7 @@ def _call_deepseek(prompt):
         if not isinstance(msg, dict):
             msg = {}
         content = (msg.get("content") or "").strip()
-        # deepseek-reasoner 等模型可能把说明放在 reasoning_content
+        # deepseek-reasoner 等模型可能将输出放在 reasoning_content 字段
         if not content:
             content = (msg.get("reasoning_content") or "").strip()
         if not content:
@@ -172,7 +172,7 @@ def _add_credit_log(user_id, score_change, reason):
 
 
 def _rating_to_credit_delta(score):
-    """Map 1-5 rating to credit change."""
+    """将 1-5 分评分映射为信用分增减值。"""
     return int(score) - 3
 
 
@@ -227,19 +227,23 @@ def house_detail(request, house_id):
             if not on_stay:
                 messages.error(request, "仅在已批准且当前处于入住期内可使用 AI 宠物照料计划")
             else:
-                house_tasks_ai = HouseTask.objects.filter(house_id=house_id)
-                pet_text = "；".join([f"{p.name}({p.type})" for p in pets]) if pets else "暂无宠物信息"
-                task_text = "；".join([f"{t.task_type}:{t.description or '无描述'}" for t in house_tasks_ai]) if house_tasks_ai else "暂无任务"
-                prompt = (
-                    f"请为以下房屋生成7天宠物照料计划，按天列出喂食、清洁、互动和注意事项。\n"
-                    f"房屋地址：{house.address}\n"
-                    f"宠物：{pet_text}\n"
-                    f"房屋任务：{task_text}\n"
-                    "输出中文，分点清晰，便于执行。"
-                )
-                pet_care_plan, err = _call_deepseek(prompt)
-                if err:
-                    messages.error(request, err)
+                try:
+                    house_tasks_ai = HouseTask.objects.filter(house_id=house_id)
+                    pet_text = "；".join([f"{p.name}({p.type})" for p in pets]) if pets else "暂无宠物信息"
+                    task_text = "；".join([f"{t.task_type}:{t.description or '无描述'}" for t in house_tasks_ai]) if house_tasks_ai else "暂无任务"
+                    prompt = (
+                        f"请为以下房屋生成7天宠物照料计划，按天列出喂食、清洁、互动和注意事项。\n"
+                        f"房屋地址：{house.address}\n"
+                        f"宠物：{pet_text}\n"
+                        f"房屋任务：{task_text}\n"
+                        "输出中文，分点清晰，便于执行。"
+                    )
+                    pet_care_plan, err = _call_deepseek(prompt)
+                    if err:
+                        messages.error(request, err)
+                except Exception as e:
+                    logger.exception("ai_pet_plan failed house_id=%s", house_id)
+                    messages.error(request, f"生成宠物照料计划失败：{_short_user_message(e)}")
         elif action == 'ai_clean_tips':
             if not on_stay:
                 messages.error(request, "仅在已批准且当前处于入住期内可使用 AI 清扫小贴士")
@@ -717,7 +721,7 @@ def statistics_view(request):
         days.append(now - timedelta(days=i))
     days = list(reversed(days))
 
-    # scope by role
+    # 按用户角色确定统计范围
     if user.role == 'owner':
         house_ids = list(House.objects.filter(owner_id=user_id).values_list('house_id', flat=True))
         req_ids = list(StayRequest.objects.filter(house_id__in=house_ids).values_list('request_id', flat=True))
@@ -741,13 +745,13 @@ def statistics_view(request):
     risk_low = RiskAlert.objects.filter(request_id__in=req_ids, level='low').count()
     risk_critical = RiskAlert.objects.filter(request_id__in=req_ids, level='critical').count()
 
-    # Dashboard KPIs
+    # 仪表盘关键指标
     house_count = len(house_ids)
     agreement_count = StayAgreement.objects.filter(request_id__in=req_ids).count()
     request_count = len(req_ids)
 
-    # No billing table yet, use demo revenue for presentation:
-    # completed agreement: 699, active agreement: 399, approved request: 199
+    # 当前尚无账单表，先使用演示口径估算收入：
+    # 已完成合同 699，进行中合同 399，已批准请求 199
     completed_count = StayAgreement.objects.filter(request_id__in=req_ids, status=StayAgreement.STATUS_COMPLETED).count()
     active_count = StayAgreement.objects.filter(request_id__in=req_ids, status=StayAgreement.STATUS_ACTIVE).count()
     approved_count = StayRequest.objects.filter(request_id__in=req_ids, status='approved').count()
@@ -1034,7 +1038,7 @@ def _refresh_agreement_status(agreement, req):
     """
     now = timezone.now()
     if agreement.signed_by_sitter and agreement.signed_by_host:
-        # both signed
+        # 双方均已签署
         if now.date() > req.end_date:
             agreement.status = StayAgreement.STATUS_COMPLETED
         elif req.start_date <= now.date() <= req.end_date:
@@ -1124,12 +1128,12 @@ def agreement_detail(request, agreement_id):
 
 
 def sign_agreement(request, agreement_id):
-    # backwards compatible old endpoint
+    # 兼容旧版签署入口
     return redirect('agreement_detail', agreement_id=agreement_id)
 
 
 def _resolve_contract_pdf_font_path():
-    """Return absolute path to a .ttf/.ttc for Chinese text in ReportLab, or None."""
+    """返回可用于 ReportLab 中文渲染的 .ttf/.ttc 绝对路径，找不到则返回 None。"""
     from pathlib import Path
 
     explicit = (getattr(settings, "CONTRACT_PDF_FONT_PATH", None) or "").strip()
@@ -1371,7 +1375,7 @@ def task_checkin(request, request_id, task_id):
 
 
 def ai_score_assist(request, request_id):
-    """Use AI to suggest a rating and comments."""
+    """使用 AI 生成建议评分与评语。"""
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect('login')
@@ -1417,7 +1421,7 @@ def ai_score_assist(request, request_id):
 
 
 def submit_rating(request, request_id):
-    """Host and sitter rate each other, then sync credit logs."""
+    """房主与看护人互评，并同步信用分变更记录。"""
     user_id = request.session.get('user_id')
     if not user_id:
         return redirect('login')
