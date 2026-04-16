@@ -596,11 +596,20 @@ def owner_listings(request):
             summary_labels.append(f"房源 #{card['house'].house_id}")
             summary_data.append(card['overall_pct'])
 
+    listings_total = len(house_cards)
+    listings_active_stay = sum(1 for c in house_cards if c['active_stay'])
+    listings_pending_contract = sum(
+        1 for c in house_cards if c['active_stay'] and not c['contract_ok']
+    )
+
     return render(request, "houses/dashboard/owner_listings.html", {
         'user': user,
         'house_cards': house_cards,
         'charts_json': mark_safe(json.dumps(charts_for_js)),
         'summary_chart_json': mark_safe(json.dumps({'labels': summary_labels, 'data': summary_data})),
+        'listings_total': listings_total,
+        'listings_active_stay': listings_active_stay,
+        'listings_pending_contract': listings_pending_contract,
     })
 
 
@@ -690,6 +699,9 @@ def sitter_my_stays(request):
         'stay_cards': stay_cards,
         'charts_json': mark_safe(json.dumps(charts_for_js)),
         'summary_chart_json': mark_safe(json.dumps({'labels': summary_labels, 'data': summary_data})),
+        'stays_pending_contract_n': len(contract_pending),
+        'stays_total_n': len(stay_cards),
+        'stays_in_house_today_n': sum(1 for c in stay_cards if c['in_stay_today']),
     })
 
 
@@ -754,8 +766,14 @@ def statistics_view(request):
     return render(request, 'houses/statistics.html', {
         'user': user,
         'chart_labels': labels,
-        'chart_checkins': checkin_counts,
-        'chart_tasks': task_counts,
+        'chart_labels_json': mark_safe(json.dumps(labels)),
+        'chart_checkins_json': mark_safe(json.dumps(checkin_counts)),
+        'chart_tasks_json': mark_safe(json.dumps(task_counts)),
+        'order_trend_json': mark_safe(json.dumps(order_trend)),
+        'revenue_trend_json': mark_safe(json.dumps(revenue_trend)),
+        'risk_distribution_json': mark_safe(json.dumps([
+            risk_critical, risk_high, risk_medium, risk_low,
+        ])),
         'risk_high': risk_high,
         'risk_medium': risk_medium,
         'risk_low': risk_low,
@@ -971,13 +989,13 @@ def handle_request(request, request_id, action):
                         'sign_time': None
                     }
                 )
-                # 如果新创建了合同，生成真实的 PDF
-                if created:
+                # 如果新创建了合同，或历史数据有合同记录但 PDF 未生成成功，则生成 PDF
+                if created or not (agreement.pdf_path or "").strip():
                     owner = User.objects.get(user_id=house.owner_id)
                     sitter = User.objects.get(user_id=req.sitter_id)
                     pdf_path = generate_contract_pdf(agreement.agreement_id, req, house, owner, sitter)
                     agreement.pdf_path = pdf_path
-                    agreement.save()
+                    agreement.save(update_fields=["pdf_path"])
 
                 # ========== 创建入住状态（用于每日签到） ==========
                 stay_status, _ = StayStatus.objects.get_or_create(
@@ -1048,6 +1066,19 @@ def agreement_detail(request, agreement_id):
         return redirect('/houses/my/')
 
     action = request.POST.get('action') if request.method == 'POST' else None
+    if action == 'regenerate_pdf':
+        try:
+            pdf_path = generate_contract_pdf(agreement.agreement_id, req, house, owner, sitter)
+            agreement.pdf_path = pdf_path
+            agreement.save(update_fields=['pdf_path'])
+            messages.success(request, "合同 PDF 已生成")
+        except FileNotFoundError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            logger.exception("regenerate_pdf failed agreement_id=%s", agreement_id)
+            messages.error(request, f"生成 PDF 失败：{e}")
+        return redirect('agreement_detail', agreement_id=agreement_id)
+
     if action == 'sitter_sign':
         if user_id != sitter.user_id:
             messages.error(request, "仅看护人可签署合同")
@@ -1088,12 +1119,37 @@ def agreement_detail(request, agreement_id):
         'sitter': sitter,
         'is_owner': user_id == owner.user_id,
         'is_sitter': user_id == sitter.user_id,
+        'MEDIA_URL': settings.MEDIA_URL,
     })
 
 
 def sign_agreement(request, agreement_id):
     # backwards compatible old endpoint
     return redirect('agreement_detail', agreement_id=agreement_id)
+
+
+def _resolve_contract_pdf_font_path():
+    """Return absolute path to a .ttf/.ttc for Chinese text in ReportLab, or None."""
+    from pathlib import Path
+
+    explicit = (getattr(settings, "CONTRACT_PDF_FONT_PATH", None) or "").strip()
+    candidates = []
+    if explicit:
+        candidates.append(Path(explicit))
+    base = Path(settings.BASE_DIR)
+    candidates.extend([
+        base / "static" / "fonts" / "simhei.ttf",
+        base / "static" / "fonts" / "SimHei.ttf",
+        base / "static" / "fonts" / "NotoSansSC-Regular.ttf",
+    ])
+    for p in candidates:
+        try:
+            if p.is_file():
+                return str(p.resolve())
+        except OSError:
+            continue
+    return None
+
 
 def generate_contract_pdf(agreement_id, request_obj, house, owner, sitter):
     """
@@ -1103,7 +1159,6 @@ def generate_contract_pdf(agreement_id, request_obj, house, owner, sitter):
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
-    from django.conf import settings
     from django.utils import timezone
     import os
 
@@ -1112,9 +1167,14 @@ def generate_contract_pdf(agreement_id, request_obj, house, owner, sitter):
     os.makedirs(contract_dir, exist_ok=True)
     filepath = os.path.join(contract_dir, filename)
 
-    # 注册中文字体
-    font_path = r"D:\django_data\house_system\static\fonts\simhei.ttf"
-    pdfmetrics.registerFont(TTFont('SimHei', font_path))
+    font_path = _resolve_contract_pdf_font_path()
+    if not font_path:
+        raise FileNotFoundError(
+            "未找到 PDF 中文字体。请将 simhei.ttf（或 NotoSansSC-Regular.ttf）放到项目 static/fonts/，"
+            "或设置环境变量 CONTRACT_PDF_FONT_PATH 为字体文件的绝对路径。"
+        )
+    if "SimHei" not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont("SimHei", font_path))
 
     c = canvas.Canvas(filepath, pagesize=A4)
     width, height = A4

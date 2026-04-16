@@ -24,12 +24,19 @@
             <p><strong>看护人签署时间：</strong>{{ agreement.sitter_signed_at|default:"-" }}</p>
             <p><strong>房主确认时间：</strong>{{ agreement.owner_signed_at|default:"-" }}</p>
             <p><strong>双方签署完成时间：</strong>{{ agreement.sign_time|default:"-" }}</p>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
             {% if agreement.pdf_path %}
-                <div class="d-flex flex-wrap gap-2">
                     <a href="{{ MEDIA_URL|default:'/media/' }}{{ agreement.pdf_path }}" target="_blank" class="btn btn-hg-primary btn-sm">查看合同PDF</a>
                     <a href="{{ MEDIA_URL|default:'/media/' }}{{ agreement.pdf_path }}" download class="btn btn-hg-outline btn-sm">下载PDF</a>
-                </div>
             {% endif %}
+            {% if is_owner or is_sitter %}
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="regenerate_pdf">
+                <button type="submit" class="btn btn-hg-outline btn-sm">{% if agreement.pdf_path %}重新生成 PDF{% else %}生成合同 PDF{% endif %}</button>
+            </form>
+            {% endif %}
+            </div>
         </div>
     </div>
 

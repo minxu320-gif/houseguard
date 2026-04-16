@@ -1,219 +1,99 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}HouseGuard+ 房屋代管系统{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <style>
-        :root {
-            --hg-bg: #f6f8fc;
-            --hg-surface: #ffffff;
-            --hg-border: #e9edf5;
-            --hg-text: #1f2937;
-            --hg-muted: #6b7280;
-            --hg-primary: #2563eb;
-            --hg-primary-hover: #1d4ed8;
-            --hg-success: #16a34a;
-            --hg-warning: #d97706;
-            --hg-danger: #dc2626;
-            --hg-radius: 14px;
-            --hg-shadow-sm: 0 1px 2px rgba(16, 24, 40, .06);
-            --hg-shadow: 0 8px 24px rgba(15, 23, 42, .06);
-        }
+{% extends "houses/layout.html" %}
+{# 应用主壳：侧栏 + 顶栏 + 主内容区（Linear / Stripe 式 SaaS） #}
+{# Bootstrap：兼容尚未迁移到 Tailwind 的页面（详情、看护台等），与新壳并存 #}
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+{% endblock %}
 
-        body {
-            background: var(--hg-bg);
-            color: var(--hg-text);
-            padding-top: 76px;
-            font-family: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
-        }
+{% block body %}
+<div class="flex min-h-screen">
+    {# 移动端侧栏遮罩 #}
+    <div data-hg-sidebar-backdrop data-hg-sidebar-close class="fixed inset-0 z-40 hidden bg-zinc-950/40 backdrop-blur-sm lg:hidden dark:bg-black/60" aria-hidden="true"></div>
 
-        .navbar-hg {
-            background: rgba(255, 255, 255, .94);
-            backdrop-filter: blur(8px);
-            border-bottom: 1px solid var(--hg-border);
-            box-shadow: var(--hg-shadow-sm);
-        }
-
-        .navbar-hg .navbar-brand {
-            font-weight: 700;
-            color: var(--hg-text);
-            letter-spacing: .2px;
-        }
-
-        .navbar-hg .nav-link {
-            color: var(--hg-muted);
-            font-weight: 500;
-            border-radius: 10px;
-            padding: .45rem .8rem;
-            transition: all .2s ease;
-        }
-
-        .navbar-hg .nav-link:hover,
-        .navbar-hg .nav-link.active {
-            color: var(--hg-primary);
-            background: #eaf1ff;
-        }
-
-        .page-wrap {
-            max-width: 1280px;
-        }
-
-        .page-header {
-            margin-bottom: 1.25rem;
-        }
-
-        .page-title {
-            font-size: 1.35rem;
-            font-weight: 700;
-            margin: 0;
-        }
-
-        .page-subtitle {
-            color: var(--hg-muted);
-            font-size: .92rem;
-            margin-top: .25rem;
-        }
-
-        .hg-card {
-            border: 1px solid var(--hg-border);
-            border-radius: var(--hg-radius);
-            background: var(--hg-surface);
-            box-shadow: var(--hg-shadow);
-        }
-
-        .hg-card .card-header {
-            background: transparent;
-            border-bottom: 1px solid var(--hg-border);
-            font-weight: 600;
-            padding: .95rem 1.1rem;
-        }
-
-        .hg-card .card-body {
-            padding: 1.1rem;
-        }
-
-        .hg-section {
-            margin-bottom: 1rem;
-        }
-
-        .hg-section-title {
-            font-size: .95rem;
-            font-weight: 600;
-            color: var(--hg-muted);
-            margin-bottom: .7rem;
-        }
-
-        .btn-hg-primary,
-        .btn-hg-success,
-        .btn-hg-danger,
-        .btn-hg-outline {
-            border-radius: 10px;
-            font-weight: 600;
-            padding: .45rem .85rem;
-        }
-
-        .btn-hg-primary {
-            background: var(--hg-primary);
-            border-color: var(--hg-primary);
-            color: #fff;
-        }
-
-        .btn-hg-primary:hover {
-            background: var(--hg-primary-hover);
-            border-color: var(--hg-primary-hover);
-            color: #fff;
-        }
-
-        .btn-hg-success {
-            background: var(--hg-success);
-            border-color: var(--hg-success);
-            color: #fff;
-        }
-
-        .btn-hg-danger {
-            background: var(--hg-danger);
-            border-color: var(--hg-danger);
-            color: #fff;
-        }
-
-        .btn-hg-outline {
-            background: #fff;
-            border: 1px solid var(--hg-border);
-            color: var(--hg-text);
-        }
-
-        .btn-hg-outline:hover {
-            background: #f3f6fd;
-            border-color: #dbe3f3;
-            color: var(--hg-text);
-        }
-
-        .badge-hg-soft {
-            background: #eef2ff;
-            color: #3730a3;
-            border: 1px solid #dde4ff;
-            font-weight: 600;
-            border-radius: 999px;
-            padding: .3rem .55rem;
-        }
-
-        .table-hg {
-            --bs-table-bg: transparent;
-            --bs-table-striped-bg: #f9fbff;
-            --bs-table-hover-bg: #f2f6ff;
-            border-color: var(--hg-border);
-        }
-
-        .alert {
-            border-radius: 10px;
-            border: 1px solid var(--hg-border);
-        }
-    </style>
-    {% block extra_head %}{% endblock %}
-</head>
-<body>
-<nav class="navbar navbar-expand-lg fixed-top navbar-hg">
-    <div class="container page-wrap px-3 px-lg-2">
-        <a class="navbar-brand" href="/houses/">HouseGuard+</a>
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#hgNavbar" aria-controls="hgNavbar" aria-expanded="false" aria-label="切换导航">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="hgNavbar">
-            <ul class="navbar-nav ms-auto gap-lg-1 mt-2 mt-lg-0">
-                <li class="nav-item"><a class="nav-link" href="/houses/">房源</a></li>
-                <li class="nav-item"><a class="nav-link" href="/houses/my/">工作台</a></li>
-                {% if hg_user %}
-                {% if hg_user.role == 'owner' %}
-                <li class="nav-item"><a class="nav-link" href="{% url 'owner_listings' %}">发布</a></li>
-                {% endif %}
-                {% if hg_user.role == 'sitter' %}
-                <li class="nav-item"><a class="nav-link" href="{% url 'sitter_my_stays' %}">我的入住</a></li>
-                {% endif %}
-                {% endif %}
-                <li class="nav-item"><a class="nav-link" href="/houses/statistics/">统计</a></li>
-                <li class="nav-item"><a class="nav-link" href="/houses/risk-alerts/">风险</a></li>
-                <li class="nav-item"><a class="nav-link" href="/houses/logout/">退出</a></li>
-            </ul>
-        </div>
-    </div>
-</nav>
-
-<main class="container page-wrap px-3 px-lg-2">
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mt-3" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    {# 侧栏 #}
+    <aside data-hg-sidebar
+           class="fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-zinc-200/80 bg-white transition-transform duration-200 ease-out dark:border-zinc-800 dark:bg-zinc-900 lg:static lg:translate-x-0">
+        <div class="flex h-14 items-center gap-2 border-b border-zinc-100 px-4 dark:border-zinc-800">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white shadow-glow">H</span>
+            <div class="min-w-0">
+                <div class="truncate text-sm font-semibold tracking-tight">HouseGuard</div>
+                <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">房屋代管</div>
             </div>
-        {% endfor %}
-    {% endif %}
+            <button type="button" data-hg-sidebar-close class="ml-auto rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 lg:hidden dark:hover:bg-zinc-800" aria-label="关闭菜单">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <nav class="flex-1 space-y-0.5 overflow-y-auto p-3">
+            <a href="/houses/" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 transition group-hover:bg-white group-hover:shadow-sm dark:bg-zinc-800 dark:text-zinc-400 dark:group-hover:bg-zinc-700">⌂</span>
+                房源
+            </a>
+            <a href="/houses/my/" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 transition group-hover:bg-white group-hover:shadow-sm dark:bg-zinc-800 dark:text-zinc-400 dark:group-hover:bg-zinc-700">▣</span>
+                工作台
+            </a>
+            {% if hg_user %}
+            {% if hg_user.role == 'owner' %}
+            <a href="{% url 'owner_listings' %}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-400">＋</span>
+                发布
+            </a>
+            {% endif %}
+            {% if hg_user.role == 'sitter' %}
+            <a href="{% url 'sitter_my_stays' %}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400">◎</span>
+                我的入住
+            </a>
+            {% endif %}
+            {% endif %}
+            <a href="/houses/statistics/" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800">📊</span>
+                统计
+            </a>
+            <a href="/houses/risk-alerts/" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">⚠</span>
+                风险
+            </a>
+        </nav>
+        <div class="border-t border-zinc-100 p-3 dark:border-zinc-800">
+            <a href="/houses/logout/" class="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 text-sm font-medium text-zinc-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/40 dark:hover:text-rose-300">
+                退出登录
+            </a>
+        </div>
+    </aside>
 
-    {% block content %}{% endblock %}
-</main>
+    <div class="flex min-w-0 flex-1 flex-col">
+        {# 顶栏 #}
+        <header class="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-200/80 bg-white/90 px-4 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90 lg:px-6">
+            <button type="button" data-hg-sidebar-open class="rounded-xl p-2 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 lg:hidden" aria-label="打开菜单">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div class="hidden min-w-0 flex-1 sm:block">
+                <p class="truncate text-sm font-semibold text-zinc-900 dark:text-white">{% block page_heading %}{% endblock %}</p>
+                <p class="truncate text-xs text-zinc-500 dark:text-zinc-400">{% block page_subheading %}{% endblock %}</p>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                {% if hg_user %}
+                <span class="hidden rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 sm:inline">{{ hg_user.username }}</span>
+                {% endif %}
+                <button type="button" data-hg-theme-toggle class="rounded-xl border border-zinc-200 bg-white p-2 text-zinc-600 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 active:scale-95 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800" title="切换深色模式">
+                    <span class="dark:hidden text-sm">◐</span>
+                    <span class="hidden dark:inline text-sm">◑</span>
+                </button>
+            </div>
+        </header>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-{% block extra_js %}{% endblock %}
-</body>
-</html>
+        <main class="flex-1 p-4 lg:p-8">
+            <div class="mx-auto max-w-7xl">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+{% endblock %}

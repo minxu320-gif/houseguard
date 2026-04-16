@@ -1,241 +1,334 @@
 {% extends "houses/base.html" %}
 {% block title %}风险告警{% endblock %}
-
-{% block extra_head %}
-<meta name="viewport" content="width=device-width, initial-scale=1">
-{% endblock %}
+{% block page_heading %}风控中心{% endblock %}
+{% block page_subheading %}筛选 · 趋势 · 高敏订单与用户 · 告警明细{% endblock %}
 
 {% block content %}
-<div class="mt-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-            <h1 class="page-title mb-1">风控中心</h1>
-            <div class="page-subtitle">筛选、趋势与分级展示 · 支持 CRITICAL / HIGH / MEDIUM / LOW</div>
-        </div>
-        <a href="{% url 'my_dashboard' %}" class="btn btn-hg-outline">返回工作台</a>
-    </div>
+{# —— 快捷导航 —— #}
+<nav class="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white p-1.5 text-sm shadow-soft dark:border-zinc-800 dark:bg-zinc-900" aria-label="页面分区">
+    <a href="#risk-overview" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">等级概览</a>
+    <a href="#risk-filters" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">筛选</a>
+    <a href="#risk-trend" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">趋势</a>
+    <a href="#risk-summary" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">摘要</a>
+    <a href="#risk-list" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">明细</a>
+</nav>
 
-    <div class="row g-3 mb-3">
-        <div class="col-6 col-md-3">
-            <div class="hg-card p-3 h-100 border-start border-4 border-danger">
-                <div class="small text-muted">严重 CRITICAL</div>
-                <div class="fs-3 fw-semibold text-danger">{{ risk_critical }}</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="hg-card p-3 h-100 border-start border-4" style="border-color:#dc2626!important;">
-                <div class="small text-muted">高 HIGH</div>
-                <div class="fs-3 fw-semibold" style="color:#b91c1c;">{{ risk_high }}</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="hg-card p-3 h-100 border-start border-4 border-warning">
-                <div class="small text-muted">中 MEDIUM</div>
-                <div class="fs-3 fw-semibold text-warning">{{ risk_medium }}</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="hg-card p-3 h-100 border-start border-4 border-success">
-                <div class="small text-muted">低 LOW</div>
-                <div class="fs-3 fw-semibold text-success">{{ risk_low }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="hg-card mb-3">
-        <div class="card-header">筛选</div>
-        <div class="card-body">
-            <form method="get" class="row g-2 align-items-end">
-                <div class="col-6 col-md-2">
-                    <label class="form-label small mb-0">房源 ID</label>
-                    <input type="number" name="house_id" class="form-control form-control-sm" value="{{ filter_house_id|default_if_none:'' }}">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small mb-0">请求 ID</label>
-                    <input type="number" name="request_id" class="form-control form-control-sm" value="{{ filter_request_id|default_if_none:'' }}">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small mb-0">等级</label>
-                    <select name="level" class="form-select form-select-sm">
-                        <option value="">全部</option>
-                        <option value="critical" {% if filter_level == 'critical' %}selected{% endif %}>critical</option>
-                        <option value="high" {% if filter_level == 'high' %}selected{% endif %}>high</option>
-                        <option value="medium" {% if filter_level == 'medium' %}selected{% endif %}>medium</option>
-                        <option value="low" {% if filter_level == 'low' %}selected{% endif %}>low</option>
-                    </select>
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small mb-0">开始日期</label>
-                    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_date_from }}">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small mb-0">结束日期</label>
-                    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_date_to }}">
-                </div>
-                <div class="col-12 col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-hg-primary btn-sm w-100">应用</button>
-                    <a href="{% url 'risk_alerts' %}" class="btn btn-hg-outline btn-sm w-100">重置</a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="hg-card mb-4">
-        <div class="card-header">近 14 日风险趋势</div>
-        <div class="card-body">
-            <div id="riskTrendChart" style="height:320px;width:100%;min-height:280px;"></div>
-        </div>
-    </div>
-
-    <div class="card hg-card mb-4">
-        <div class="card-header bg-danger bg-opacity-10 text-danger">高严重度订单（HIGH + CRITICAL）</div>
-        <div class="card-body">
-            {% if high_risk_orders %}
-                <div class="table-responsive">
-                <table class="table table-hg table-bordered table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>请求ID</th>
-                            <th>房源ID</th>
-                            <th>状态</th>
-                            <th>告警次数</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for item in high_risk_orders %}
-                        <tr>
-                            <td>{{ item.request_id }}</td>
-                            <td>{{ item.house_id }}</td>
-                            <td>{{ item.status }}</td>
-                            <td><span class="badge bg-danger">{{ item.alert_count }}</span></td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                </div>
-            {% else %}
-                <div class="alert alert-info mb-0">暂无高严重度订单</div>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card hg-card mb-4">
-        <div class="card-header bg-warning bg-opacity-25 text-dark">异常用户（样本内聚合）</div>
-        <div class="card-body">
-            {% if abnormal_users %}
-                <div class="table-responsive">
-                <table class="table table-hg table-bordered table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>用户ID</th>
-                            <th>用户名</th>
-                            <th>风险评分</th>
-                            <th>等级</th>
-                            <th>严重/高/中/低</th>
-                            <th>总告警</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for u in abnormal_users %}
-                        <tr>
-                            <td>{{ u.user_id }}</td>
-                            <td>{{ u.username }}</td>
-                            <td>{{ u.risk_score }}</td>
-                            <td>
-                                {% if u.risk_color == 'red' %}
-                                    <span class="badge bg-danger">红</span>
-                                {% elif u.risk_color == 'yellow' %}
-                                    <span class="badge bg-warning text-dark">黄</span>
-                                {% else %}
-                                    <span class="badge bg-success">绿</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ u.critical|default:0 }} / {{ u.high }} / {{ u.medium }} / {{ u.low }}</td>
-                            <td>{{ u.total }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                </div>
-            {% else %}
-                <div class="alert alert-info mb-0">暂无异常用户</div>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card hg-card">
-        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span>告警明细</span>
-            <span class="small text-muted">共 {{ paginator.count }} 条 · 每页 {{ paginator.per_page }} 条</span>
-        </div>
-        <div class="card-body">
-            {% if alerts_page %}
-                <div class="table-responsive">
-                <table class="table table-hg table-bordered table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>时间</th>
-                            <th>等级</th>
-                            <th>类型</th>
-                            <th>房源ID</th>
-                            <th>请求ID</th>
-                            <th>内容</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for a in alerts_page %}
-                        <tr class="{% if a.level == 'critical' %}table-danger{% elif a.level == 'high' %}table-danger{% elif a.level == 'medium' %}table-warning{% endif %}">
-                            <td>{{ a.create_time|date:"Y-m-d H:i" }}</td>
-                            <td>
-                                <span class="badge {% if a.level == 'critical' %}bg-dark{% elif a.level == 'high' %}bg-danger{% elif a.level == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ a.level }}</span>
-                            </td>
-                            <td>{{ a.alert_type }}</td>
-                            <td>{{ a.house_id }}</td>
-                            <td>{{ a.request_id|default:"-" }}</td>
-                            <td>{{ a.message }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-                </div>
-                {% if alerts_page.has_other_pages %}
-                <nav class="mt-3" aria-label="分页">
-                    <ul class="pagination pagination-sm flex-wrap mb-0">
-                        {% if alerts_page.has_previous %}
-                        <li class="page-item"><a class="page-link" href="?page={{ alerts_page.previous_page_number }}&house_id={{ filter_house_id|default_if_none:'' }}&request_id={{ filter_request_id|default_if_none:'' }}&level={{ filter_level }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">上一页</a></li>
-                        {% endif %}
-                        <li class="page-item disabled"><span class="page-link">{{ alerts_page.number }} / {{ paginator.num_pages }}</span></li>
-                        {% if alerts_page.has_next %}
-                        <li class="page-item"><a class="page-link" href="?page={{ alerts_page.next_page_number }}&house_id={{ filter_house_id|default_if_none:'' }}&request_id={{ filter_request_id|default_if_none:'' }}&level={{ filter_level }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">下一页</a></li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
-            {% else %}
-                <div class="alert alert-info mb-0">暂无告警明细</div>
-            {% endif %}
-        </div>
-    </div>
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <p class="max-w-2xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">按房源 / 请求 / 等级 / 时间缩小范围；图表与统计均基于<strong class="text-zinc-700 dark:text-zinc-300">当前筛选结果</strong>。</p>
+    <a href="{% url 'my_dashboard' %}" class="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">返回工作台</a>
 </div>
+
+{# —— 1. 等级概览 —— #}
+<section id="risk-overview" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">当前筛选 · 等级分布</h2>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-1">
+            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">合计</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">{{ risk_critical|add:risk_high|add:risk_medium|add:risk_low }}</p>
+            <p class="mt-0.5 text-xs text-zinc-500">条告警</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-100/90 p-4 shadow-soft dark:border-zinc-700 dark:bg-zinc-800/60">
+            <p class="text-xs font-medium text-zinc-600 dark:text-zinc-400">CRITICAL</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">{{ risk_critical }}</p>
+        </div>
+        <div class="rounded-2xl border border-rose-200/80 bg-rose-50/80 p-4 dark:border-rose-900/40 dark:bg-rose-950/30">
+            <p class="text-xs font-medium text-rose-700 dark:text-rose-300">HIGH</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-rose-700 dark:text-rose-200">{{ risk_high }}</p>
+        </div>
+        <div class="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+            <p class="text-xs font-medium text-amber-800 dark:text-amber-200">MEDIUM</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-amber-800 dark:text-amber-200">{{ risk_medium }}</p>
+        </div>
+        <div class="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/30">
+            <p class="text-xs font-medium text-emerald-800 dark:text-emerald-200">LOW</p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">{{ risk_low }}</p>
+        </div>
+    </div>
+</section>
+
+{# —— 2. 筛选 —— #}
+<section id="risk-filters" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">筛选条件</h2>
+    <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+        <form method="get" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
+            <div class="lg:col-span-1">
+                <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">房源 ID</label>
+                <input type="number" name="house_id" value="{{ filter_house_id|default_if_none:'' }}" placeholder="可选" class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+            </div>
+            <div class="lg:col-span-1">
+                <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">请求 ID</label>
+                <input type="number" name="request_id" value="{{ filter_request_id|default_if_none:'' }}" placeholder="可选" class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+            </div>
+            <div class="lg:col-span-1">
+                <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">等级</label>
+                <select name="level" class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+                    <option value="">全部</option>
+                    <option value="critical" {% if filter_level == 'critical' %}selected{% endif %}>critical</option>
+                    <option value="high" {% if filter_level == 'high' %}selected{% endif %}>high</option>
+                    <option value="medium" {% if filter_level == 'medium' %}selected{% endif %}>medium</option>
+                    <option value="low" {% if filter_level == 'low' %}selected{% endif %}>low</option>
+                </select>
+            </div>
+            <div class="lg:col-span-1">
+                <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">开始日期</label>
+                <input type="date" name="date_from" value="{{ filter_date_from }}" class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+            </div>
+            <div class="lg:col-span-1">
+                <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">结束日期</label>
+                <input type="date" name="date_to" value="{{ filter_date_to }}" class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+            </div>
+            <div class="flex gap-2 sm:col-span-2 lg:col-span-1">
+                <button type="submit" class="flex-1 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-500">应用</button>
+                <a href="{% url 'risk_alerts' %}" class="flex-1 rounded-xl border border-zinc-200 py-2 text-center text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800">重置</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{# —— 3. 趋势图 —— #}
+<section id="risk-trend" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">近 14 日趋势（按等级）</h2>
+    <div class="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+        <div id="riskTrendChart" class="h-72 w-full min-h-[280px] sm:h-80"></div>
+    </div>
+</section>
+
+{# —— 4. 摘要：高敏订单 + 异常用户 —— #}
+<section id="risk-summary" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">风险摘要</h2>
+    <div class="grid gap-6 lg:grid-cols-2">
+        {# 高严重度订单 #}
+        <div class="rounded-2xl border border-rose-200/60 bg-white shadow-soft dark:border-rose-900/35 dark:bg-zinc-900">
+            <div class="border-b border-rose-100 px-5 py-4 dark:border-rose-900/30">
+                <h3 class="text-sm font-semibold text-rose-900 dark:text-rose-100">高严重度订单</h3>
+                <p class="mt-0.5 text-xs text-rose-700/80 dark:text-rose-300/80">HIGH + CRITICAL，按告警次数排序（前 20）</p>
+            </div>
+            <div class="p-4">
+                {% if high_risk_orders %}
+                <div class="hidden overflow-x-auto md:block">
+                    <table class="w-full min-w-[360px] text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-zinc-200 text-xs font-semibold uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                                <th class="pb-2 pr-3">请求</th>
+                                <th class="pb-2 pr-3">房源</th>
+                                <th class="pb-2 pr-3">状态</th>
+                                <th class="pb-2 text-right">告警</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {% for item in high_risk_orders %}
+                            <tr class="text-zinc-700 dark:text-zinc-300">
+                                <td class="py-2.5 pr-3 font-mono text-xs">{{ item.request_id }}</td>
+                                <td class="py-2.5 pr-3 font-mono text-xs">{{ item.house_id }}</td>
+                                <td class="py-2.5 pr-3">{{ item.status }}</td>
+                                <td class="py-2.5 text-right"><span class="rounded-lg bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-200">{{ item.alert_count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <ul class="space-y-2 md:hidden">
+                    {% for item in high_risk_orders %}
+                    <li class="rounded-xl border border-zinc-100 bg-rose-50/40 p-3 dark:border-zinc-800 dark:bg-rose-950/20">
+                        <div class="flex justify-between gap-2 text-sm font-medium text-zinc-900 dark:text-white">
+                            <span>请求 #{{ item.request_id }}</span>
+                            <span class="rounded-md bg-rose-600 px-2 py-0.5 text-xs text-white">{{ item.alert_count }} 条</span>
+                        </div>
+                        <p class="mt-1 text-xs text-zinc-600 dark:text-zinc-400">房源 {{ item.house_id }} · {{ item.status }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-400">暂无高严重度订单</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# 异常用户 #}
+        <div class="rounded-2xl border border-amber-200/60 bg-white shadow-soft dark:border-amber-900/35 dark:bg-zinc-900">
+            <div class="border-b border-amber-100 px-5 py-4 dark:border-amber-900/30">
+                <h3 class="text-sm font-semibold text-amber-950 dark:text-amber-100">异常用户</h3>
+                <p class="mt-0.5 text-xs text-amber-800/80 dark:text-amber-200/80">基于当前筛选样本聚合（最多 20 人）</p>
+            </div>
+            <div class="p-4">
+                {% if abnormal_users %}
+                <div class="hidden overflow-x-auto lg:block">
+                    <table class="w-full min-w-[480px] text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-zinc-200 text-xs font-semibold uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                                <th class="pb-2 pr-2">用户</th>
+                                <th class="pb-2 pr-2">评分</th>
+                                <th class="pb-2 pr-2">灯</th>
+                                <th class="pb-2 pr-2">严重/高/中/低</th>
+                                <th class="pb-2 text-right">总</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {% for u in abnormal_users %}
+                            <tr class="text-zinc-700 dark:text-zinc-300">
+                                <td class="py-2.5 pr-2">
+                                    <span class="font-medium text-zinc-900 dark:text-white">{{ u.username }}</span>
+                                    <span class="ml-1 font-mono text-xs text-zinc-500">#{{ u.user_id }}</span>
+                                </td>
+                                <td class="py-2.5 pr-2 tabular-nums">{{ u.risk_score }}</td>
+                                <td class="py-2.5 pr-2">
+                                    {% if u.risk_color == 'red' %}
+                                    <span class="inline-block h-2.5 w-2.5 rounded-full bg-rose-500" title="红"></span>
+                                    {% elif u.risk_color == 'yellow' %}
+                                    <span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" title="黄"></span>
+                                    {% else %}
+                                    <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" title="绿"></span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-2.5 pr-2 font-mono text-xs text-zinc-500">{{ u.critical|default:0 }}/{{ u.high }}/{{ u.medium }}/{{ u.low }}</td>
+                                <td class="py-2.5 text-right tabular-nums">{{ u.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <ul class="space-y-2 lg:hidden">
+                    {% for u in abnormal_users %}
+                    <li class="rounded-xl border border-zinc-100 bg-amber-50/30 p-3 dark:border-zinc-800 dark:bg-amber-950/15">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-medium text-zinc-900 dark:text-white">{{ u.username }}</span>
+                            <span class="text-xs font-mono text-zinc-500">#{{ u.user_id }}</span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                            <span>评分 {{ u.risk_score }}</span>
+                            {% if u.risk_color == 'red' %}<span class="rounded-md bg-rose-100 px-1.5 py-0.5 font-medium text-rose-800 dark:bg-rose-950 dark:text-rose-200">红</span>
+                            {% elif u.risk_color == 'yellow' %}<span class="rounded-md bg-amber-100 px-1.5 py-0.5 font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">黄</span>
+                            {% else %}<span class="rounded-md bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">绿</span>{% endif %}
+                            <span class="font-mono">{{ u.critical|default:0 }}/{{ u.high }}/{{ u.medium }}/{{ u.low }}</span>
+                            <span>共 {{ u.total }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-400">暂无异常用户</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{# —— 5. 告警明细 —— #}
+<section id="risk-list" class="scroll-mt-24 mb-8">
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">告警明细</h2>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400">共 <span class="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{{ paginator.count }}</span> 条 · 每页 {{ paginator.per_page }} 条</p>
+    </div>
+    <div class="rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="p-4 sm:p-5">
+            {% if paginator.count %}
+            <div class="hidden overflow-x-auto xl:block">
+                <table class="w-full min-w-[900px] text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-200 text-xs font-semibold uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                            <th class="pb-3 pr-3 whitespace-nowrap">时间</th>
+                            <th class="pb-3 pr-3">等级</th>
+                            <th class="pb-3 pr-3">类型</th>
+                            <th class="pb-3 pr-3">房源</th>
+                            <th class="pb-3 pr-3">请求</th>
+                            <th class="pb-3">内容</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {% for a in alerts_page %}
+                        <tr class="align-top text-zinc-700 dark:text-zinc-300 {% if a.level == 'critical' or a.level == 'high' %}bg-rose-50/40 dark:bg-rose-950/10{% elif a.level == 'medium' %}bg-amber-50/30 dark:bg-amber-950/10{% endif %}">
+                            <td class="py-3 pr-3 whitespace-nowrap text-xs text-zinc-500">{{ a.create_time|date:"Y-m-d H:i" }}</td>
+                            <td class="py-3 pr-3">
+                                <span class="inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold
+                                    {% if a.level == 'critical' %}bg-zinc-900 text-white
+                                    {% elif a.level == 'high' %}bg-rose-600 text-white
+                                    {% elif a.level == 'medium' %}bg-amber-500 text-white
+                                    {% else %}bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200{% endif %}">{{ a.level }}</span>
+                            </td>
+                            <td class="py-3 pr-3 text-xs">{{ a.alert_type }}</td>
+                            <td class="py-3 pr-3 font-mono text-xs">{{ a.house_id }}</td>
+                            <td class="py-3 pr-3 font-mono text-xs">{{ a.request_id|default:"—" }}</td>
+                            <td class="py-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">{{ a.message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <ul class="space-y-3 xl:hidden">
+                {% for a in alerts_page %}
+                <li class="rounded-xl border border-zinc-100 p-4 dark:border-zinc-800 {% if a.level == 'critical' or a.level == 'high' %}bg-rose-50/50 dark:bg-rose-950/15{% elif a.level == 'medium' %}bg-amber-50/40 dark:bg-amber-950/10{% else %}bg-zinc-50/30 dark:bg-zinc-800/20{% endif %}">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold
+                            {% if a.level == 'critical' %}bg-zinc-900 text-white
+                            {% elif a.level == 'high' %}bg-rose-600 text-white
+                            {% elif a.level == 'medium' %}bg-amber-500 text-white
+                            {% else %}bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200{% endif %}">{{ a.level }}</span>
+                        <span class="text-xs text-zinc-500">{{ a.create_time|date:"Y-m-d H:i" }}</span>
+                        <span class="text-xs font-medium text-zinc-800 dark:text-zinc-200">{{ a.alert_type }}</span>
+                    </div>
+                    <p class="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{{ a.message }}</p>
+                    <p class="mt-2 font-mono text-xs text-zinc-500">房源 {{ a.house_id }} {% if a.request_id %}· 请求 {{ a.request_id }}{% endif %}</p>
+                </li>
+                {% endfor %}
+            </ul>
+
+            {% if alerts_page.has_other_pages %}
+            <nav class="mt-6 flex justify-center" aria-label="分页">
+                <div class="inline-flex items-center gap-1 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-1 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    {% if alerts_page.has_previous %}
+                    <a class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white dark:text-zinc-200 dark:hover:bg-zinc-900" href="?page={{ alerts_page.previous_page_number }}&house_id={{ filter_house_id|default_if_none:'' }}&request_id={{ filter_request_id|default_if_none:'' }}&level={{ filter_level }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">上一页</a>
+                    {% else %}
+                    <span class="cursor-not-allowed rounded-xl px-4 py-2 text-sm text-zinc-300 dark:text-zinc-600">上一页</span>
+                    {% endif %}
+                    <span class="px-3 py-2 text-sm font-semibold tabular-nums text-zinc-900 dark:text-white">{{ alerts_page.number }} / {{ paginator.num_pages }}</span>
+                    {% if alerts_page.has_next %}
+                    <a class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-white dark:text-zinc-200 dark:hover:bg-zinc-900" href="?page={{ alerts_page.next_page_number }}&house_id={{ filter_house_id|default_if_none:'' }}&request_id={{ filter_request_id|default_if_none:'' }}&level={{ filter_level }}&date_from={{ filter_date_from }}&date_to={{ filter_date_to }}">下一页</a>
+                    {% else %}
+                    <span class="cursor-not-allowed rounded-xl px-4 py-2 text-sm text-zinc-300 dark:text-zinc-600">下一页</span>
+                    {% endif %}
+                </div>
+            </nav>
+            {% endif %}
+            {% else %}
+            <p class="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-400">当前筛选下暂无告警，可调整筛选条件或重置。</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
 {% endblock %}
 
 {% block extra_js %}
+{{ block.super }}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <script>
-const chart = echarts.init(document.getElementById('riskTrendChart'));
-chart.setOption({
-  tooltip: { trigger: 'axis' },
-  legend: { data: ['critical','high','medium','low'], bottom: 0 },
-  grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-  xAxis: { type: 'category', boundaryGap: false, data: {{ trend_labels_json }} },
-  yAxis: { type: 'value', name: '条数' },
-  series: [
-    { name: 'critical', type: 'line', smooth: true, data: {{ trend_critical_json }}, itemStyle: { color: '#111827' } },
-    { name: 'high', type: 'line', smooth: true, data: {{ trend_high_json }}, itemStyle: { color: '#dc2626' } },
-    { name: 'medium', type: 'line', smooth: true, data: {{ trend_medium_json }}, itemStyle: { color: '#d97706' } },
-    { name: 'low', type: 'line', smooth: true, data: {{ trend_low_json }}, itemStyle: { color: '#6b7280' } }
-  ]
-});
-window.addEventListener('resize', () => chart.resize());
+(function () {
+  const el = document.getElementById('riskTrendChart');
+  if (!el || typeof echarts === 'undefined') return;
+  const chart = echarts.init(el);
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['critical','high','medium','low'], bottom: 0, textStyle: { color: document.documentElement.classList.contains('dark') ? '#a1a1aa' : '#52525b' } },
+    grid: { left: '3%', right: '4%', bottom: '18%', containLabel: true },
+    xAxis: { type: 'category', boundaryGap: false, data: {{ trend_labels_json }} },
+    yAxis: { type: 'value', name: '条数', splitLine: { lineStyle: { color: document.documentElement.classList.contains('dark') ? '#3f3f46' : '#e4e4e7' } } },
+    series: [
+      { name: 'critical', type: 'line', smooth: true, data: {{ trend_critical_json }}, itemStyle: { color: '#18181b' }, areaStyle: { opacity: 0.06 } },
+      { name: 'high', type: 'line', smooth: true, data: {{ trend_high_json }}, itemStyle: { color: '#e11d48' }, areaStyle: { opacity: 0.06 } },
+      { name: 'medium', type: 'line', smooth: true, data: {{ trend_medium_json }}, itemStyle: { color: '#d97706' }, areaStyle: { opacity: 0.06 } },
+      { name: 'low', type: 'line', smooth: true, data: {{ trend_low_json }}, itemStyle: { color: '#71717a' }, areaStyle: { opacity: 0.06 } }
+    ]
+  });
+  window.addEventListener('resize', function () { chart.resize(); });
+  document.querySelectorAll('[data-hg-theme-toggle]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setTimeout(function () {
+        chart.setOption({
+          legend: { textStyle: { color: document.documentElement.classList.contains('dark') ? '#a1a1aa' : '#52525b' } },
+          yAxis: { splitLine: { lineStyle: { color: document.documentElement.classList.contains('dark') ? '#3f3f46' : '#e4e4e7' } } }
+        });
+      }, 50);
+    });
+  });
+})();
 </script>
 {% endblock %}

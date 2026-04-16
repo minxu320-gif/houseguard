@@ -1,157 +1,221 @@
 {% extends "houses/base.html" %}
 {% block title %}我发布的房源{% endblock %}
+{% block page_heading %}我发布的房源{% endblock %}
+{% block page_subheading %}编辑房源 · 查看入住与任务进度{% endblock %}
 
 {% block content %}
-<div class="mt-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-            <h1 class="page-title mb-1">我发布的房源</h1>
-            <div class="page-subtitle">集中查看、编辑房源，并查看当前入住的任务完成进度</div>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'owner_dashboard' %}" class="btn btn-hg-outline">房主管理台</a>
-            <button type="button" class="btn btn-hg-primary" data-bs-toggle="modal" data-bs-target="#addHouseModal">增加房源</button>
-        </div>
-    </div>
+{# —— 快捷分区导航（锚点） —— #}
+<nav class="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white p-1.5 text-sm shadow-soft dark:border-zinc-800 dark:bg-zinc-900" aria-label="页面分区">
+    <a href="#section-stats" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">数据概览</a>
+    <a href="#section-chart" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">进度图表</a>
+    <a href="#section-list" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">房源明细</a>
+</nav>
 
-    {% if not house_cards %}
-    <div class="hg-card">
-        <div class="card-body text-muted">暂无房源，请点击「增加房源」发布。</div>
+{# —— 1. 页面操作区 —— #}
+<div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="max-w-xl">
+        <h1 class="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">发布与履约</h1>
+        <p class="mt-1 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">在此集中管理已上架房源；有看护人入住时，可查看任务完成进度与合同状态。</p>
     </div>
-    {% endif %}
-
-    <div class="row g-3 mb-3">
-        <div class="col-lg-8">
-            <div class="hg-card">
-                <div class="card-header">进行中入住 · 各房源任务整体进度</div>
-                <div class="card-body" style="min-height: 200px;">
-                    <canvas id="ownerSummaryChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="hg-card h-100">
-                <div class="card-header">图例说明</div>
-                <div class="card-body small text-muted">每个有「当前入住」的房源一条柱，高度为任务平均完成比例（相对入住总天数）。无进行入住时不显示柱子。</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3">
-        {% for card in house_cards %}
-        <div class="col-12">
-            <div class="hg-card h-100">
-                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <span class="fw-semibold">{{ card.house.address }}</span>
-                        <span class="text-muted small ms-2">#{{ card.house.house_id }}</span>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2">
-                        <a href="{% url 'edit_house' card.house.house_id %}" class="btn btn-hg-outline btn-sm">编辑信息</a>
-                        <a href="{% url 'house_detail' card.house.house_id %}" class="btn btn-hg-primary btn-sm">详情与任务</a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="small text-muted">可入住</div>
-                            <div>{{ card.house.available_from|date:"Y-m-d" }} ~ {{ card.house.available_to|date:"Y-m-d" }}</div>
-                            <div class="mt-2 small text-muted">房源任务数</div>
-                            <div class="fw-semibold">{{ card.task_count }}</div>
-                            {% if card.house.has_pet %}
-                            <span class="badge bg-success mt-2">有宠物</span>
-                            {% else %}
-                            <span class="badge bg-secondary mt-2">无宠物</span>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-8">
-                            {% if card.active_stay %}
-                            <div class="small text-muted mb-1">当前入住申请</div>
-                            <div class="mb-2">
-                                请求 #{{ card.active_stay.request_id }} ·
-                                {% if card.contract_ok %}
-                                <span class="badge bg-success">合同已生效</span>
-                                {% else %}
-                                <span class="badge bg-warning text-dark">合同待签署</span>
-                                {% endif %}
-                                {% if card.agreement %}
-                                <a href="{% url 'agreement_detail' card.agreement.agreement_id %}" class="btn btn-hg-outline btn-sm ms-1">查看合同</a>
-                                {% endif %}
-                            </div>
-                            {% if card.task_rows %}
-                            <div class="small text-muted mb-1">任务进度（相对入住总天数）</div>
-                            <div class="mb-2">
-                                <span class="badge-hg-soft">整体约 {{ card.overall_pct }}%</span>
-                            </div>
-                            <div style="max-height: 220px;"><canvas id="houseTaskChart{{ card.house.house_id }}" height="120"></canvas></div>
-                            <ul class="list-unstyled small mt-2 mb-0">
-                                {% for tr in card.task_rows %}
-                                <li class="d-flex justify-content-between border-bottom py-1">
-                                    <span>{{ tr.task.task_type }}</span>
-                                    <span class="text-muted">{{ tr.done_count }}/{{ tr.span_days }} 天 · {{ tr.percent }}%</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                            <div class="alert alert-light border mb-0">当前房源暂无任务模板，可在详情页添加任务。</div>
-                            {% endif %}
-                            {% else %}
-                            <div class="text-muted small">今日无进行中的已批准入住，任务进度图表将在有看护人入住且处于日期区间内时显示。</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+    <div class="flex shrink-0 flex-wrap gap-2">
+        <a href="{% url 'owner_dashboard' %}" class="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">房主管理台</a>
+        <button type="button" data-hg-modal-open="modal-add-house-listings" class="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-500 active:scale-[0.98]">增加房源</button>
     </div>
 </div>
 
-<div class="modal fade" id="addHouseModal" tabindex="-1" aria-labelledby="addHouseModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="post" action="{% url 'add_house' %}">
-        {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title" id="addHouseModalLabel">增加房源</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+{# —— 2. 数据概览 —— #}
+<section id="section-stats" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        <span class="h-px w-8 shrink-0 bg-zinc-200 dark:bg-zinc-700"></span>
+        数据概览
+        <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-700"></span>
+    </h2>
+    <div class="grid gap-4 sm:grid-cols-3">
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">已发布房源</p>
+            <p class="mt-2 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">{{ listings_total }}</p>
+            <p class="mt-1 text-xs text-zinc-500">在架套数</p>
         </div>
-        <div class="modal-body">
-            <div class="mb-3">
-                <label for="address" class="form-label">地址</label>
-                <input type="text" class="form-control" id="address" name="address" required>
-            </div>
-            <div class="mb-3">
-                <label for="description" class="form-label">描述</label>
-                <textarea class="form-control" id="description" name="description"></textarea>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">是否有宠物</label>
-                <select class="form-select" name="has_pet" required>
-                    <option value="0">无</option>
-                    <option value="1">有</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="available_from" class="form-label">可入住起始日期</label>
-                <input type="date" class="form-control" id="available_from" name="available_from" required>
-            </div>
-            <div class="mb-3">
-                <label for="available_to" class="form-label">可入住结束日期</label>
-                <input type="date" class="form-control" id="available_to" name="available_to" required>
-            </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">进行中入住</p>
+            <p class="mt-2 text-2xl font-semibold tabular-nums text-teal-600 dark:text-teal-400">{{ listings_active_stay }}</p>
+            <p class="mt-1 text-xs text-zinc-500">今日在住区间内的申请</p>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-          <button type="submit" class="btn btn-primary">保存房源</button>
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">待签署合同</p>
+            <p class="mt-2 text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">{{ listings_pending_contract }}</p>
+            <p class="mt-1 text-xs text-zinc-500">有入住但双方未签完</p>
         </div>
-      </form>
     </div>
-  </div>
+</section>
+
+{# —— 3. 进度图表区 —— #}
+<section id="section-chart" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        <span class="h-px w-8 shrink-0 bg-zinc-200 dark:bg-zinc-700"></span>
+        进行中入住 · 任务进度总览
+        <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-700"></span>
+    </h2>
+    <div class="grid gap-4 lg:grid-cols-3">
+        <div class="lg:col-span-2 rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">各房源整体完成度</h3>
+                <p class="mt-0.5 text-xs text-zinc-500">仅统计当前有「进行中入住」的房源；柱高为任务平均完成比例（相对入住天数）。</p>
+            </div>
+            <div class="p-5" style="min-height: 220px;">
+                <canvas id="ownerSummaryChart" class="max-h-72"></canvas>
+            </div>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-5 dark:border-zinc-800 dark:bg-zinc-900/60">
+            <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">如何阅读</h3>
+            <ul class="mt-3 space-y-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                <li class="flex gap-2"><span class="text-brand-500">·</span> 下图汇总：每个在住房源一条柱。</li>
+                <li class="flex gap-2"><span class="text-brand-500">·</span> 下方「房源明细」中可查看单套任务拆分。</li>
+                <li class="flex gap-2"><span class="text-brand-500">·</span> 无在住时图表区域会提示暂无数据。</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+{# —— 4. 房源明细 —— #}
+<section id="section-list" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        <span class="h-px w-8 shrink-0 bg-zinc-200 dark:bg-zinc-700"></span>
+        房源明细
+        <span class="h-px flex-1 bg-zinc-200 dark:bg-zinc-700"></span>
+    </h2>
+
+    {% if not house_cards %}
+    {% include "houses/components/hg_empty_state.html" with title="暂无房源" description="点击右上角「增加房源」发布第一套房源。" icon="🏠" %}
+    {% endif %}
+
+    <div class="space-y-4">
+        {% for card in house_cards %}
+        <article class="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900 {% if card.active_stay %}ring-1 ring-teal-500/20 dark:ring-teal-500/15{% endif %}">
+            <div class="flex flex-col gap-4 border-b border-zinc-100 p-5 sm:flex-row sm:items-start sm:justify-between dark:border-zinc-800">
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="text-base font-semibold text-zinc-900 dark:text-white">{{ card.house.address|truncatechars:56 }}</h3>
+                        <span class="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">#{{ card.house.house_id }}</span>
+                        {% if card.house.has_pet %}
+                        <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">有宠物</span>
+                        {% else %}
+                        <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">无宠物</span>
+                        {% endif %}
+                        {% if card.active_stay %}
+                        <span class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-900 dark:bg-teal-950 dark:text-teal-200">入住进行中</span>
+                        {% else %}
+                        <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800">当前无在住</span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">可入住：{{ card.house.available_from|date:"Y-m-d" }} ~ {{ card.house.available_to|date:"Y-m-d" }} · 任务模板 {{ card.task_count }} 项</p>
+                </div>
+                <div class="flex shrink-0 flex-wrap gap-2">
+                    <a href="{% url 'edit_house' card.house.house_id %}" class="inline-flex items-center justify-center rounded-xl border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800">编辑信息</a>
+                    <a href="{% url 'house_detail' card.house.house_id %}" class="inline-flex items-center justify-center rounded-xl bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-500">详情与任务</a>
+                </div>
+            </div>
+
+            <div class="grid gap-0 lg:grid-cols-5">
+                {# 左：入住与合同 #}
+                <div class="border-b border-zinc-100 p-5 lg:col-span-2 lg:border-b-0 lg:border-r dark:border-zinc-800">
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">入住与合同</h4>
+                    {% if card.active_stay %}
+                    <p class="mt-3 text-sm text-zinc-800 dark:text-zinc-200">请求 <span class="font-mono">#{{ card.active_stay.request_id }}</span></p>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        {% if card.contract_ok %}
+                        <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">合同已生效</span>
+                        {% else %}
+                        <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">合同待签署</span>
+                        {% endif %}
+                        {% if card.agreement %}
+                        <a href="{% url 'agreement_detail' card.agreement.agreement_id %}" class="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400">查看合同</a>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">今日无进行中的已批准入住；看护人在住且日期命中后，将显示合同与进度。</p>
+                    {% endif %}
+                </div>
+                {# 右：任务进度 #}
+                <div class="p-5 lg:col-span-3">
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">任务进度（相对入住总天数）</h4>
+                    {% if card.active_stay %}
+                        {% if card.task_rows %}
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                            <span class="rounded-lg bg-brand-50 px-2.5 py-1 text-sm font-semibold text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">整体约 {{ card.overall_pct }}%</span>
+                        </div>
+                        <div class="mt-3 max-h-56"><canvas id="houseTaskChart{{ card.house.house_id }}" height="120"></canvas></div>
+                        <ul class="mt-3 divide-y divide-zinc-100 text-sm dark:divide-zinc-800">
+                            {% for tr in card.task_rows %}
+                            <li class="flex justify-between gap-3 py-2">
+                                <span class="text-zinc-800 dark:text-zinc-200">{{ tr.task.task_type }}</span>
+                                <span class="shrink-0 tabular-nums text-zinc-500">{{ tr.done_count }}/{{ tr.span_days }} 天 · {{ tr.percent }}%</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="mt-3 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-400">当前房源暂无任务模板，可在详情页添加任务。</p>
+                        {% endif %}
+                    {% else %}
+                    <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">无在住时不展示任务图表。</p>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+{# —— 增加房源（与全局壳层 modal 脚本一致） —— #}
+<div id="modal-add-house-listings" data-hg-modal class="fixed inset-0 z-[120] hidden overflow-y-auto">
+    <div class="flex min-h-full items-end justify-center p-4 sm:items-center sm:p-6">
+        <div data-hg-modal-close class="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm dark:bg-black/70" aria-hidden="true"></div>
+        <div class="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-glow dark:border-zinc-700 dark:bg-zinc-900">
+            <form method="post" action="{% url 'add_house' %}" data-hg-loading class="text-left">
+                {% csrf_token %}
+                <div class="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white">增加房源</h3>
+                    <button type="button" data-hg-modal-close class="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800" aria-label="关闭">✕</button>
+                </div>
+                <div class="space-y-4 p-5">
+                    <div>
+                        <label for="address" class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">地址</label>
+                        <input type="text" name="address" id="address" required class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+                    </div>
+                    <div>
+                        <label for="description" class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">描述</label>
+                        <textarea name="description" id="description" rows="3" class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"></textarea>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">是否有宠物</label>
+                        <select name="has_pet" required class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+                            <option value="0">无</option>
+                            <option value="1">有</option>
+                        </select>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="available_from" class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">可入住起始</label>
+                            <input type="date" name="available_from" id="available_from" required class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+                        </div>
+                        <div>
+                            <label for="available_to" class="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">可入住结束</label>
+                            <input type="date" name="available_to" id="available_to" required class="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-zinc-100 px-5 py-4 dark:border-zinc-800">
+                    <button type="button" data-hg-modal-close class="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800">取消</button>
+                    <button type="submit" class="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-500">保存房源</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+{{ block.super }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 const ownerSummary = {{ summary_chart_json }};
@@ -164,19 +228,21 @@ if (osEl && ownerSummary.labels && ownerSummary.labels.length) {
       datasets: [{
         label: "任务整体进度 %",
         data: ownerSummary.data,
-        backgroundColor: "rgba(37,99,235,.4)",
-        borderColor: "#2563eb",
-        borderWidth: 1
+        backgroundColor: "rgba(99,102,241,.45)",
+        borderColor: "#6366f1",
+        borderWidth: 1,
+        borderRadius: 6
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: { y: { beginAtZero: true, max: 100 } }
+      scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } },
+      plugins: { legend: { display: false } }
     }
   });
 } else if (osEl) {
-  osEl.replaceWith(Object.assign(document.createElement("p"), { className: "text-muted small mb-0", textContent: "暂无进行中入住，无汇总数据。" }));
+  osEl.replaceWith(Object.assign(document.createElement("p"), { className: "text-sm text-zinc-500 dark:text-zinc-400 mb-0", textContent: "暂无进行中入住，无汇总数据。" }));
 }
 
 const charts = {{ charts_json }};
@@ -190,17 +256,16 @@ charts.forEach((cfg) => {
       datasets: [{
         label: "任务完成度 %",
         data: cfg.data,
-        backgroundColor: "rgba(37,99,235,.35)",
-        borderColor: "#2563eb",
-        borderWidth: 1
+        backgroundColor: "rgba(99,102,241,.35)",
+        borderColor: "#6366f1",
+        borderWidth: 1,
+        borderRadius: 6
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: {
-        y: { beginAtZero: true, max: 100 }
-      },
+      scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } },
       plugins: { legend: { display: false } }
     }
   });

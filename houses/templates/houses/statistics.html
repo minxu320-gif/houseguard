@@ -1,157 +1,210 @@
 {% extends "houses/base.html" %}
-{% block title %}数据可视化{% endblock %}
+{% block title %}数据统计{% endblock %}
+{% block page_heading %}数据统计{% endblock %}
+{% block page_subheading %}按角色展示与您相关的房源、合同、订单与履约趋势（近 7 天）{% endblock %}
 
 {% block content %}
-<div class="mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h1 class="page-title mb-1">业务 Dashboard</h1>
-            <div class="page-subtitle">房屋数量、合同规模、订单与收益趋势一屏掌握</div>
-        </div>
-        <a href="{% url 'my_dashboard' %}" class="btn btn-hg-outline">返回工作台</a>
-    </div>
+<nav class="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200/80 bg-white p-1.5 text-sm shadow-soft dark:border-zinc-800 dark:bg-zinc-900" aria-label="页面分区">
+    <a href="#stat-kpi" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">核心指标</a>
+    <a href="#stat-business" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">订单与收益</a>
+    <a href="#stat-ops" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">履约</a>
+    <a href="#stat-risk" class="rounded-xl px-3 py-2 font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white">风险</a>
+</nav>
 
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <div class="hg-card p-3 h-100">
-                <div class="small text-muted">房屋数量</div>
-                <div class="fs-3 fw-semibold">{{ house_count }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="hg-card p-3 h-100">
-                <div class="small text-muted">合同数量</div>
-                <div class="fs-3 fw-semibold">{{ agreement_count }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="hg-card p-3 h-100">
-                <div class="small text-muted">订单数量</div>
-                <div class="fs-3 fw-semibold">{{ request_count }}</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="hg-card p-3 h-100">
-                <div class="small text-muted">预估收益</div>
-                <div class="fs-3 fw-semibold">￥{{ estimated_revenue }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3">
-        <div class="col-lg-6">
-            <div class="hg-card">
-                <div class="card-header">订单趋势（近7天）</div>
-                <div class="card-body">
-                    <canvas id="orderTrend"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="hg-card">
-                <div class="card-header">收益趋势（近7天）</div>
-                <div class="card-body">
-                    <canvas id="revenueTrend"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="hg-card">
-                <div class="card-header">签到趋势</div>
-                <div class="card-body">
-                    <canvas id="checkinTrend"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6">
-            <div class="hg-card">
-                <div class="card-header">任务完成情况</div>
-                <div class="card-body">
-                    <canvas id="taskCompletion"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-12">
-            <div class="hg-card">
-                <div class="card-header">风险分布</div>
-                <div class="card-body">
-                    <canvas id="riskDistribution"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <p class="max-w-2xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+        当前登录：<span class="font-medium text-zinc-800 dark:text-zinc-200">{{ user.username }}</span>
+        （{{ user.role }}）。预估收益为演示口径（按合同状态与申请数估算），非真实对账。
+    </p>
+    <a href="{% url 'my_dashboard' %}" class="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">返回工作台</a>
 </div>
+
+{# —— 核心指标 —— #}
+<section id="stat-kpi" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">核心指标</h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">关联房源数</p>
+            <p class="mt-2 text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">{{ house_count }}</p>
+            <p class="mt-1 text-xs text-zinc-500">与您订单相关的房源</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">合同数量</p>
+            <p class="mt-2 text-2xl font-semibold tabular-nums text-brand-600 dark:text-brand-400">{{ agreement_count }}</p>
+            <p class="mt-1 text-xs text-zinc-500">StayAgreement 记录数</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+            <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400">订单（请求）数</p>
+            <p class="mt-2 text-2xl font-semibold tabular-nums text-teal-600 dark:text-teal-400">{{ request_count }}</p>
+            <p class="mt-1 text-xs text-zinc-500">入住申请条数</p>
+        </div>
+        <div class="rounded-2xl border border-emerald-200/60 bg-emerald-50/50 p-5 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+            <p class="text-xs font-medium text-emerald-800 dark:text-emerald-300">预估收益（演示）</p>
+            <p class="mt-2 text-2xl font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">￥{{ estimated_revenue }}</p>
+            <p class="mt-1 text-xs text-emerald-700/80 dark:text-emerald-400/90">规则：完成/在途合同与已批准申请加权</p>
+        </div>
+    </div>
+</section>
+
+{# —— 订单与收益 —— #}
+<section id="stat-business" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">订单与收益 · 近 7 天</h2>
+    <div class="grid gap-6 lg:grid-cols-2">
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+            <div class="mb-2 flex items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">订单趋势</h3>
+                <span class="text-xs text-zinc-500">新建申请 / 天</span>
+            </div>
+            <div class="h-64 sm:h-72"><canvas id="orderTrend"></canvas></div>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+            <div class="mb-2 flex items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">收益趋势</h3>
+                <span class="text-xs text-zinc-500">演示口径 · 元</span>
+            </div>
+            <div class="h-64 sm:h-72"><canvas id="revenueTrend"></canvas></div>
+        </div>
+    </div>
+</section>
+
+{# —— 履约 —— #}
+<section id="stat-ops" class="scroll-mt-24 mb-8">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">履约 · 近 7 天</h2>
+    <div class="grid gap-6 lg:grid-cols-2">
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+            <div class="mb-2 flex items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">签到次数</h3>
+                <span class="text-xs text-zinc-500">按日汇总</span>
+            </div>
+            <div class="h-64 sm:h-72"><canvas id="checkinTrend"></canvas></div>
+        </div>
+        <div class="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+            <div class="mb-2 flex items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">任务完成</h3>
+                <span class="text-xs text-zinc-500">标记为 done 的条数 / 天</span>
+            </div>
+            <div class="h-64 sm:h-72"><canvas id="taskCompletion"></canvas></div>
+        </div>
+    </div>
+</section>
+
+{# —— 风险 —— #}
+<section id="stat-risk" class="scroll-mt-24 mb-10">
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">风险分布（累计 · 当前关联请求）</h2>
+    <div class="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-soft dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+        <div class="mx-auto max-w-md">
+            <div class="h-64 sm:h-72 flex items-center justify-center"><canvas id="riskDistribution"></canvas></div>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-center gap-3 text-center text-xs text-zinc-500 dark:text-zinc-400">
+            <span><span class="font-semibold text-zinc-700 dark:text-zinc-300">CRITICAL</span> {{ risk_critical }}</span>
+            <span><span class="font-semibold text-rose-600">HIGH</span> {{ risk_high }}</span>
+            <span><span class="font-semibold text-amber-600">MEDIUM</span> {{ risk_medium }}</span>
+            <span><span class="font-semibold text-zinc-500">LOW</span> {{ risk_low }}</span>
+        </div>
+    </div>
+</section>
 {% endblock %}
 
 {% block extra_js %}
+{{ block.super }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-const labels = {{ chart_labels|default:"[]"|safe }};
-const checkins = {{ chart_checkins|default:"[]"|safe }};
-const tasks = {{ chart_tasks|default:"[]"|safe }};
-const orders = {{ order_trend|default:"[]"|safe }};
-const revenues = {{ revenue_trend|default:"[]"|safe }};
+(function () {
+  const labels = {{ chart_labels_json }};
+  const checkins = {{ chart_checkins_json }};
+  const tasks = {{ chart_tasks_json }};
+  const orders = {{ order_trend_json }};
+  const revenues = {{ revenue_trend_json }};
+  const riskData = {{ risk_distribution_json }};
+  const gridColor = document.documentElement.classList.contains('dark') ? 'rgba(63,63,70,.6)' : 'rgba(228,228,231,.9)';
+  const tickColor = document.documentElement.classList.contains('dark') ? '#a1a1aa' : '#71717a';
 
-new Chart(document.getElementById("orderTrend"), {
-  type: "line",
-  data: {
-    labels,
-    datasets: [{
-      label: "订单数",
-      data: orders,
-      borderColor: "#2563eb",
-      backgroundColor: "rgba(37,99,235,.18)",
-      fill: true,
-      tension: 0.35
-    }]
-  },
-});
+  const scaleOpts = {
+    x: { grid: { color: gridColor }, ticks: { color: tickColor, maxRotation: 0 } },
+    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: tickColor } }
+  };
 
-new Chart(document.getElementById("revenueTrend"), {
-  type: "bar",
-  data: {
-    labels,
-    datasets: [{
-      label: "收益(元)",
-      data: revenues,
-      backgroundColor: "#16a34a"
-    }]
-  },
-});
+  new Chart(document.getElementById("orderTrend"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "订单数",
+        data: orders,
+        borderColor: "#6366f1",
+        backgroundColor: "rgba(99,102,241,.15)",
+        fill: true,
+        tension: 0.35,
+        borderWidth: 2
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: scaleOpts }
+  });
 
-new Chart(document.getElementById("checkinTrend"), {
-  type: "line",
-  data: {
-    labels,
-    datasets: [{
-      label: "签到次数",
-      data: checkins,
-      borderColor: "#0ea5e9",
-      backgroundColor: "rgba(14,165,233,.16)",
-      fill: true,
-      tension: 0.3
-    }]
-  },
-});
+  new Chart(document.getElementById("revenueTrend"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "收益(元)",
+        data: revenues,
+        backgroundColor: "rgba(16,185,129,.75)",
+        borderRadius: 6
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: scaleOpts }
+  });
 
-new Chart(document.getElementById("taskCompletion"), {
-  type: "bar",
-  data: {
-    labels,
-    datasets: [{
-      label: "完成任务数",
-      data: tasks,
-      backgroundColor: "#6366f1"
-    }]
-  },
-});
+  new Chart(document.getElementById("checkinTrend"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "签到次数",
+        data: checkins,
+        borderColor: "#0ea5e9",
+        backgroundColor: "rgba(14,165,233,.14)",
+        fill: true,
+        tension: 0.3,
+        borderWidth: 2
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: scaleOpts }
+  });
 
-new Chart(document.getElementById("riskDistribution"), {
-  type: "doughnut",
-  data: {
-    labels: ["critical","high","medium","low"],
-    datasets: [{ label: "风险数", data: [{{ risk_critical|default:0 }}, {{ risk_high|default:0 }}, {{ risk_medium|default:0 }}, {{ risk_low|default:0 }}] }]
-  },
-});
+  new Chart(document.getElementById("taskCompletion"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "完成任务数",
+        data: tasks,
+        backgroundColor: "rgba(99,102,241,.65)",
+        borderRadius: 6
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: scaleOpts }
+  });
+
+  new Chart(document.getElementById("riskDistribution"), {
+    type: "doughnut",
+    data: {
+      labels: ["critical", "high", "medium", "low"],
+      datasets: [{
+        data: riskData,
+        backgroundColor: ["#a1a1aa", "#e11d48", "#d97706", "#71717a"],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "58%",
+      plugins: {
+        legend: { position: "bottom", labels: { color: tickColor, padding: 16, usePointStyle: true } }
+      }
+    }
+  });
+})();
 </script>
 {% endblock %}

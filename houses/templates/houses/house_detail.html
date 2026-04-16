@@ -1,236 +1,236 @@
 {% extends "houses/base.html" %}
 {% block title %}房源详情{% endblock %}
+{% block page_heading %}房源详情{% endblock %}
+{% block page_subheading %}房源 #{{ house.house_id }} · 申请、任务、宠物与风险信息{% endblock %}
 
 {% block content %}
-
-<!-- 房源详情 -->
-<div class="card mb-4">
-    <div class="card-header bg-primary bg-opacity-25 text-dark">
-        房源详情 - ID: {{ house.house_id }}
-    </div>
-    <div class="card-body">
-        <p><strong>地址：</strong> {{ house.address }}</p>
-        <p><strong>描述：</strong> {{ house.description|default:"暂无描述" }}</p>
-        <p><strong>是否有宠物：</strong>
-            {% if house.has_pet == 1 %}有宠物{% else %}无宠物{% endif %}
-        </p>
-        <p><strong>可入住时间：</strong>
-            {{ house.available_from|date:"Y-m-d" }} ~ {{ house.available_to|date:"Y-m-d" }}
-        </p>
-        <p><strong>创建时间：</strong> {{ house.create_time|date:"Y-m-d H:i" }}</p>
-        <a href="{% url 'house_list' %}" class="btn btn-secondary">返回列表</a>
-        <!-- 申请按钮 -->
-        <form method="post" style="display:inline;">
+<div class="mb-6 flex flex-wrap items-center justify-between gap-2">
+    <a href="{% url 'house_list' %}" class="inline-flex items-center rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">返回列表</a>
+    <div class="flex flex-wrap gap-2">
+        <form method="post" data-hg-loading>
             {% csrf_token %}
             <input type="hidden" name="action" value="apply">
-            <button type="submit" class="btn btn-success">申请入住</button>
+            <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">申请入住</button>
         </form>
-        {% if show_ai_features %}
-        <form method="post" style="display:inline;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="ai_pet_plan">
-            <button type="submit" class="btn btn-outline-success">AI 生成宠物照料计划</button>
-        </form>
-        <form method="post" style="display:inline;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="ai_clean_tips">
-            <button type="submit" class="btn btn-outline-info">AI 生成清扫小贴士</button>
-        </form>
-        {% else %}
-        <p class="text-muted small mb-0 d-inline-block ms-2">AI 宠物照料与清扫建议仅在「申请已批准且当前日期在入住开始与结束日期之间」时可用。</p>
-        {% endif %}
         {% if is_owner %}
-        <a href="{% url 'edit_house' house.house_id %}" class="btn btn-warning">编辑房源</a>
+        <a href="{% url 'edit_house' house.house_id %}" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">编辑房源</a>
         {% endif %}
     </div>
 </div>
 
+<section class="mb-8 rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="grid gap-6 p-5 lg:grid-cols-3">
+        <div class="lg:col-span-2">
+            <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">{{ house.address }}</h2>
+            <p class="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{{ house.description|default:"暂无描述" }}</p>
+        </div>
+        <div class="space-y-3 rounded-xl border border-zinc-100 bg-zinc-50/70 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-800/35">
+            <div class="flex justify-between gap-2"><span class="text-zinc-500">房源 ID</span><span class="font-mono text-zinc-800 dark:text-zinc-200">#{{ house.house_id }}</span></div>
+            <div class="flex justify-between gap-2"><span class="text-zinc-500">宠物状态</span><span class="font-medium">{% if house.has_pet == 1 %}有宠物{% else %}无宠物{% endif %}</span></div>
+            <div class="flex justify-between gap-2"><span class="text-zinc-500">可入住</span><span class="text-zinc-800 dark:text-zinc-200">{{ house.available_from|date:"Y-m-d" }} ~ {{ house.available_to|date:"Y-m-d" }}</span></div>
+            <div class="flex justify-between gap-2"><span class="text-zinc-500">创建时间</span><span class="text-zinc-800 dark:text-zinc-200">{{ house.create_time|date:"Y-m-d H:i" }}</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="mb-8 rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+    <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">AI 助手</h3>
+    {% if show_ai_features %}
+    <div class="mt-3 flex flex-wrap gap-2">
+        <form method="post" data-hg-loading>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ai_pet_plan">
+            <button type="submit" class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">AI 生成宠物照料计划</button>
+        </form>
+        <form method="post" data-hg-loading>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ai_clean_tips">
+            <button type="submit" class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200">AI 生成清扫小贴士</button>
+        </form>
+    </div>
+    {% else %}
+    <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">AI 建议仅在「申请已批准且当前日期在入住开始与结束日期之间」时可用。</p>
+    {% endif %}
+</section>
+
 {% if pet_care_plan %}
-<div class="card mb-4">
-    <div class="card-header bg-success bg-opacity-25 text-dark">
-        AI 宠物照料计划
+<section class="mb-8 rounded-2xl border border-emerald-200/70 bg-white shadow-soft dark:border-emerald-900/30 dark:bg-zinc-900">
+    <div class="border-b border-emerald-100 bg-emerald-50/70 px-5 py-4 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+        <h3 class="text-sm font-semibold text-emerald-900 dark:text-emerald-200">AI 宠物照料计划</h3>
     </div>
-    <div class="card-body">
-        <pre class="mb-0" style="white-space: pre-wrap;">{{ pet_care_plan }}</pre>
-    </div>
-</div>
+    <pre class="overflow-x-auto p-5 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{{ pet_care_plan }}</pre>
+</section>
 {% endif %}
 
 {% if cleaning_tips %}
-<div class="card mb-4">
-    <div class="card-header bg-info bg-opacity-25 text-dark">
-        AI 房屋清扫小贴士
+<section class="mb-8 rounded-2xl border border-sky-200/70 bg-white shadow-soft dark:border-sky-900/30 dark:bg-zinc-900">
+    <div class="border-b border-sky-100 bg-sky-50/70 px-5 py-4 dark:border-sky-900/30 dark:bg-sky-950/20">
+        <h3 class="text-sm font-semibold text-sky-900 dark:text-sky-200">AI 房屋清扫小贴士</h3>
     </div>
-    <div class="card-body">
-        <pre class="mb-0" style="white-space: pre-wrap;">{{ cleaning_tips }}</pre>
-    </div>
-</div>
+    <pre class="overflow-x-auto p-5 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{{ cleaning_tips }}</pre>
+</section>
 {% endif %}
 
-<!-- 房屋任务列表 -->
-<div class="card mb-4">
-    <div class="card-header bg-info bg-opacity-25 text-dark d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span>房屋任务</span>
+<section class="mb-8 rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+        <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">房屋任务</h3>
         {% if active_stay %}
-        <span class="badge bg-primary">当前入住请求 #{{ active_stay.request_id }}（进度按入住天数估算）</span>
+        <span class="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-medium text-brand-800 dark:bg-brand-950/40 dark:text-brand-200">当前入住请求 #{{ active_stay.request_id }}（进度按入住天数估算）</span>
         {% endif %}
     </div>
-    <div class="card-body">
+    <div class="p-5">
         {% if is_owner %}
-        <form method="post" class="row g-2 align-items-end border rounded p-3 mb-4 bg-light">
+        <form method="post" data-hg-loading class="mb-5 grid gap-3 rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-4 md:grid-cols-10 dark:border-zinc-700 dark:bg-zinc-800/30">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_task">
-            <div class="col-md-3">
-                <label class="form-label small mb-0">任务类型</label>
-                <input type="text" name="task_type" class="form-control form-control-sm" placeholder="例如：清扫" maxlength="50" required>
+            <div class="md:col-span-3">
+                <label class="mb-1 block text-xs font-medium text-zinc-500">任务类型</label>
+                <input type="text" name="task_type" maxlength="50" required class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white" placeholder="例如：清扫">
             </div>
-            <div class="col-md-4">
-                <label class="form-label small mb-0">描述（可选）</label>
-                <input type="text" name="description" class="form-control form-control-sm" placeholder="补充说明">
+            <div class="md:col-span-4">
+                <label class="mb-1 block text-xs font-medium text-zinc-500">描述（可选）</label>
+                <input type="text" name="description" class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white" placeholder="补充说明">
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-0">频率</label>
-                <select name="frequency" class="form-select form-select-sm">
+            <div class="md:col-span-2">
+                <label class="mb-1 block text-xs font-medium text-zinc-500">频率</label>
+                <select name="frequency" class="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-white">
                     <option value="每日">每日</option>
                     <option value="每周">每周</option>
                     <option value="单次">单次</option>
                 </select>
             </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary btn-sm w-100">添加任务</button>
+            <div class="md:col-span-1 flex items-end">
+                <button type="submit" class="w-full rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-500">添加</button>
             </div>
         </form>
         {% endif %}
 
         {% if task_progress_rows %}
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>任务ID</th>
-                    <th>任务类型</th>
-                    <th>描述</th>
-                    <th>频率</th>
-                    <th style="min-width: 200px;">履约进度</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in task_progress_rows %}
-                {% with task=row.task %}
-                <tr>
-                    <td>{{ task.task_id }}</td>
-                    <td>{{ task.task_type }}</td>
-                    <td>{{ task.description|default:"无" }}</td>
-                    <td>{{ task.frequency }}</td>
-                    <td>
-                        {% if row.span_days %}
-                        <div class="small text-muted mb-1">已完成 {{ row.done_count }} / 入住 {{ row.span_days }} 天（按每日可签到估算）</div>
-                        <div class="progress" style="height: 22px;" role="progressbar" aria-valuenow="{{ row.percent }}" aria-valuemin="0" aria-valuemax="100">
-                            <div class="progress-bar bg-success" style="width: {{ row.percent }}%;">{{ row.percent }}%</div>
-                        </div>
-                        {% else %}
-                        <span class="text-muted small">尚无进行中的入住，看护人签到后将在此显示进度</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endwith %}
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[760px] text-left text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-200 text-xs font-semibold uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                        <th class="pb-3 pr-3">任务ID</th>
+                        <th class="pb-3 pr-3">任务类型</th>
+                        <th class="pb-3 pr-3">描述</th>
+                        <th class="pb-3 pr-3">频率</th>
+                        <th class="pb-3">履约进度</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {% for row in task_progress_rows %}
+                    {% with task=row.task %}
+                    <tr class="text-zinc-700 dark:text-zinc-300">
+                        <td class="py-3 pr-3 font-mono text-xs">{{ task.task_id }}</td>
+                        <td class="py-3 pr-3 font-medium text-zinc-900 dark:text-white">{{ task.task_type }}</td>
+                        <td class="py-3 pr-3 text-zinc-500">{{ task.description|default:"无" }}</td>
+                        <td class="py-3 pr-3">{{ task.frequency }}</td>
+                        <td class="py-3">
+                            {% if row.span_days %}
+                            <div class="mb-1 text-xs text-zinc-500">已完成 {{ row.done_count }} / 入住 {{ row.span_days }} 天（按每日可签到估算）</div>
+                            <div class="h-2.5 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
+                                <div class="h-full rounded-full bg-emerald-500" style="width: {{ row.percent }}%"></div>
+                            </div>
+                            <div class="mt-1 text-xs font-semibold text-zinc-600 dark:text-zinc-300">{{ row.percent }}%</div>
+                            {% else %}
+                            <span class="text-xs text-zinc-500">尚无进行中的入住，看护人签到后将在此显示进度</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
-            <p>暂无任务</p>
+        <p class="text-sm text-zinc-500">暂无任务</p>
         {% endif %}
     </div>
+</section>
+
+<div class="grid gap-6 lg:grid-cols-2">
+    <section class="rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+            <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">宠物信息</h3>
+        </div>
+        <div class="p-5">
+            {% if pets %}
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[520px] text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-200 text-xs font-semibold uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                            <th class="pb-3 pr-3">宠物ID</th><th class="pb-3 pr-3">名字</th><th class="pb-3 pr-3">类型</th><th class="pb-3 pr-3">年龄</th><th class="pb-3">描述</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {% for pet in pets %}
+                        <tr>
+                            <td class="py-2.5 pr-3 font-mono text-xs">{{ pet.pet_id }}</td>
+                            <td class="py-2.5 pr-3 font-medium">{{ pet.name }}</td>
+                            <td class="py-2.5 pr-3">{{ pet.type }}</td>
+                            <td class="py-2.5 pr-3">{{ pet.age|default:"未知" }}</td>
+                            <td class="py-2.5">{{ pet.description|default:"无" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-zinc-500">暂无宠物信息</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+            <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">最近入住请求</h3>
+        </div>
+        <div class="p-5">
+            {% if stay_requests %}
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[520px] text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-200 text-xs font-semibold uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                            <th class="pb-3 pr-3">请求ID</th><th class="pb-3 pr-3">客户ID</th><th class="pb-3 pr-3">开始</th><th class="pb-3 pr-3">结束</th><th class="pb-3">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {% for req in stay_requests %}
+                        <tr>
+                            <td class="py-2.5 pr-3 font-mono text-xs">{{ req.request_id }}</td>
+                            <td class="py-2.5 pr-3">{{ req.sitter_id }}</td>
+                            <td class="py-2.5 pr-3">{{ req.start_date|date:"Y-m-d" }}</td>
+                            <td class="py-2.5 pr-3">{{ req.end_date|date:"Y-m-d" }}</td>
+                            <td class="py-2.5">{{ req.status }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-zinc-500">暂无入住请求</p>
+            {% endif %}
+        </div>
+    </section>
 </div>
 
-<!-- 宠物列表 -->
-<div class="card mb-4">
-    <div class="card-header bg-success bg-opacity-25 text-dark">
-        宠物信息
+<section class="mt-6 rounded-2xl border border-zinc-200/80 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+        <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">风险告警</h3>
     </div>
-    <div class="card-body">
-        {% if pets %}
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>宠物ID</th>
-                    <th>名字</th>
-                    <th>类型</th>
-                    <th>年龄</th>
-                    <th>描述</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pet in pets %}
-                <tr>
-                    <td>{{ pet.pet_id }}</td>
-                    <td>{{ pet.name }}</td>
-                    <td>{{ pet.type }}</td>
-                    <td>{{ pet.age|default:"未知" }}</td>
-                    <td>{{ pet.description|default:"无" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-            <p>暂无宠物信息</p>
-        {% endif %}
-    </div>
-</div>
-
-<!-- 最近入住请求 -->
-<div class="card mb-4">
-    <div class="card-header bg-warning bg-opacity-25 text-dark">
-        最近入住请求
-    </div>
-    <div class="card-body">
-        {% if stay_requests %}
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>请求ID</th>
-                    <th>客户ID</th>
-                    <th>开始日期</th>
-                    <th>结束日期</th>
-                    <th>状态</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for req in stay_requests %}
-                <tr>
-                    <td>{{ req.request_id }}</td>
-                    <td>{{ req.sitter_id }}</td>
-                    <td>{{ req.start_date|date:"Y-m-d" }}</td>
-                    <td>{{ req.end_date|date:"Y-m-d" }}</td>
-                    <td>{{ req.status }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-            <p>暂无入住请求</p>
-        {% endif %}
-    </div>
-</div>
-
-<!-- 风险告警 -->
-<div class="card mb-4">
-    <div class="card-header bg-danger bg-opacity-25 text-dark">
-        风险告警
-    </div>
-    <div class="card-body">
+    <div class="p-5">
         {% if risk_alerts %}
-        <ul class="list-group">
+        <ul class="space-y-2">
             {% for alert in risk_alerts %}
-            <li class="list-group-item bg-danger bg-opacity-10 text-dark">
+            <li class="rounded-xl border border-rose-200/70 bg-rose-50/60 px-3 py-2 text-sm text-zinc-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-zinc-300">
                 <strong>{{ alert.alert_type }}:</strong> {{ alert.message }}
-                (等级: {{ alert.level }}, 时间: {{ alert.create_time|date:"Y-m-d H:i" }})
+                <span class="text-xs text-zinc-500">（等级: {{ alert.level }}，时间: {{ alert.create_time|date:"Y-m-d H:i" }}）</span>
             </li>
             {% endfor %}
         </ul>
         {% else %}
-            <p>暂无风险告警</p>
+        <p class="text-sm text-zinc-500">暂无风险告警</p>
         {% endif %}
     </div>
-</div>
-
+</section>
 {% endblock %}

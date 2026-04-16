@@ -1,0 +1,13 @@
+{# 用法: {% include "houses/components/hg_empty_state.html" with title="标题" description="说明" icon="📋" cta_href=url cta_label="操作" %} #}
+<div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/60 px-6 py-12 text-center dark:border-zinc-700 dark:bg-zinc-900/40 sm:px-10 sm:py-16">
+    <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl shadow-soft dark:bg-zinc-900 dark:shadow-none">{{ icon|default:"📭" }}</div>
+    <h3 class="text-base font-semibold tracking-tight text-zinc-900 dark:text-white">{{ title|default:"暂无数据" }}</h3>
+    {% if description %}
+    <p class="mt-2 max-w-md text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">{{ description }}</p>
+    {% endif %}
+    {% if cta_href and cta_label %}
+    <a href="{{ cta_href }}" class="mt-6 inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-500 active:scale-[0.98]">
+        {{ cta_label }}
+    </a>
+    {% endif %}
+</div>
